@@ -25,7 +25,7 @@ fi
 git config --global --add safe.directory "$(pwd)" 2>/dev/null || true
 
 PLUGIN_NAME="managelm-openai-gpt"
-GITHUB_REPO="managelm/openai-gpt-plugin"
+GITHUB_REPO="managelm/openai-gpt"
 VERSION=$(node -p "require('./package.json').version")
 TAG="v${VERSION}"
 TARBALL="${PLUGIN_NAME}-${VERSION}.tar.gz"
