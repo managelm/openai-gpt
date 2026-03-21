@@ -123,7 +123,7 @@ the GPT editor. See [ManageLM Privacy Policy](https://www.managelm.com/privacy.h
 
 - [ManageLM Website](https://www.managelm.com)
 - [Documentation](https://www.managelm.com/doc/)
-- [GitHub](https://github.com/managelm/openai-gpt-plugin)
+- [GitHub](https://github.com/managelm/openai-gpt)
 
 ## License
 

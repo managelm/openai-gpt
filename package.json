@@ -16,6 +16,6 @@
   "homepage": "https://www.managelm.com",
   "repository": {
     "type": "git",
-    "url": "https://github.com/managelm/openai-gpt-plugin.git"
+    "url": "https://github.com/managelm/openai-gpt.git"
   }
 }

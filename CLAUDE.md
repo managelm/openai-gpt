@@ -10,7 +10,7 @@
 - `./package.sh` creates a versioned tarball of the plugin files.
 - `./deploy.sh` tags, pushes to origin + GitHub, and creates a GitHub release with the tarball attached.
 - Version is read from `package.json`. Bump it before deploying a new release.
-- GitHub repo: https://github.com/managelm/openai-gpt-plugin
+- GitHub repo: https://github.com/managelm/openai-gpt
 
 ## Plugin structure
 
