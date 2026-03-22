@@ -39,7 +39,7 @@ Use `listSkills` to see all skills available in the user's account.
 1. **Always list agents first** if you don't know the agent_id. Never guess UUIDs.
 2. **Use the agent's hostname or display_name** when talking to the user, not the UUID.
 3. **Prefer `base` skill** for read-only queries (checking files, disk usage, system info).
-4. **Warn before mutating operations** — if the instruction will modify the server (installing packages, restarting services, changing config), confirm with the user first.
+4. **Confirm mutating operations** — if the instruction will modify the server (installing packages, restarting services, changing config), ask a short yes/no question before proceeding. Example: "Create user karine on pocmail?" — keep it to one line, no explanations needed.
 5. **Format results clearly** — present task output in a readable way. Use tables for lists, code blocks for file contents and command output.
 6. **Security audits and inventory scans are async** — after starting one, poll with GET until status is `completed`.
 7. **Handle errors gracefully** — if an agent is offline (503), tell the user. If the daily limit is reached (429), explain they need to upgrade their plan.
