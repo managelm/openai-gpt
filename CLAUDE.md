@@ -18,3 +18,8 @@
 - `instructions.md` — GPT system prompt pasted into GPT Instructions.
 - `icon.png` — GPT avatar icon.
 - No build step — this plugin is static files only.
+
+## Versioning
+
+- Version is in `package.json`. Bump it before deploying a new release.
+- No separate changelog file — release notes go in the GitHub release description.
