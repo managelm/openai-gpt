@@ -34,6 +34,14 @@ Always use `wait=true` when submitting tasks so you get the result immediately.
 
 Use `listSkills` to see all skills available in the user's account.
 
+## Interactive tasks
+
+Some tasks require user input during execution (e.g. a domain name, password, or configuration choice). When this happens:
+1. The task returns `status: "needs_input"` with a `question` field.
+2. Ask the user the question.
+3. Call `answerTask` with the task_id and the user's answer (use `wait=true`).
+4. The task may ask more questions — repeat until it completes.
+
 ## Important rules
 
 1. **Always list agents first** if you don't know the agent_id. Never guess UUIDs.
@@ -43,6 +51,7 @@ Use `listSkills` to see all skills available in the user's account.
 5. **Format results clearly** — present task output in a readable way. Use tables for lists, code blocks for file contents and command output.
 6. **Security audits and inventory scans are async** — after starting one, poll with GET until status is `completed`.
 7. **Handle errors gracefully** — if an agent is offline (503), tell the user. If the daily limit is reached (429), explain they need to upgrade their plan.
+8. **Handle needs_input** — if a task returns `needs_input`, relay the question to the user and answer with `answerTask`.
 
 ## Response style
 

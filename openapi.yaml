@@ -106,13 +106,17 @@ components:
           type: string
         status:
           type: string
-          enum: [sent, running, completed, failed, timeout]
+          enum: [sent, running, completed, failed, timeout, needs_input, answered]
         error_message:
           type: string
           nullable: true
         summary:
           type: string
           nullable: true
+        question:
+          type: string
+          nullable: true
+          description: Question from the agent when status is needs_input
         mutating:
           type: boolean
         created_at:
@@ -424,7 +428,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [sent, running, completed, failed, timeout]
+            enum: [sent, running, completed, failed, timeout, needs_input, answered]
         - name: limit
           in: query
           schema:
@@ -474,6 +478,79 @@ paths:
                     $ref: "#/components/schemas/Task"
         "404":
           description: Task not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /tasks/{taskId}/answer:
+    post:
+      operationId: answerTask
+      summary: Answer an interactive task question
+      description: >
+        When a task returns status needs_input, the agent is waiting for user
+        input (e.g. domain name, password, configuration choice). Use this
+        endpoint to provide the answer and resume the task. Supports wait=true
+        to block until the resumed task completes.
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: wait
+          in: query
+          description: Block until the follow-up task completes
+          schema:
+            type: string
+            enum: ["true"]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [answer]
+              properties:
+                answer:
+                  type: string
+                  description: Answer to the question asked by the agent
+      responses:
+        "200":
+          description: Follow-up task completed (when wait=true)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  task:
+                    $ref: "#/components/schemas/Task"
+                  result:
+                    description: The task output from the agent
+        "202":
+          description: Follow-up task submitted (async mode)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  task_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                  previous_task_id:
+                    type: string
+                    format: uuid
+        "409":
+          description: Task is not in needs_input state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "410":
+          description: Session expired (context no longer available)
           content:
             application/json:
               schema:
