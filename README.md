@@ -11,6 +11,7 @@ API used by the Claude extension, n8n integration, and Slack plugin.
 
 - **Agent management** — list servers, check status, health metrics, approve pending agents
 - **Task execution** — run natural-language instructions on any server using skills
+- **Interactive tasks** — when the agent needs input (domain name, password, config choice), GPT asks you and answers the agent automatically
 - **Security audits** — trigger and review security findings with severity levels
 - **Inventory scans** — discover packages, services, and containers
 - **Groups & skills** — view server groups and available capabilities
