@@ -14,8 +14,11 @@ API used by the Claude extension, n8n integration, and Slack plugin.
 - **Interactive tasks** — when the agent needs input (domain name, password, config choice), GPT asks you and answers the agent automatically
 - **Security audits** — trigger and review security findings with severity levels
 - **Inventory scans** — discover packages, services, and containers
+- **Cross-infrastructure search** — search agents, inventory, security findings, SSH keys, and sudo rules across all servers without dispatching commands
+- **Task changes & revert** — view file changes made by tasks and revert them
 - **Groups & skills** — view server groups and available capabilities
 - **Account overview** — check team members and account details
+- **Email notifications** — send reports and summaries to your email
 
 ## Architecture
 
@@ -88,9 +91,19 @@ servers:
 
 > Which servers have CPU usage above 80%?
 
-> List running services on lb-01
+> Which servers have nginx installed?
 
-> Show the last 50 lines of /var/log/syslog on monitoring-1
+> Show all critical security findings
+
+> Who has SSH access to the production servers?
+
+> Show all NOPASSWD sudo rules
+
+> What files did the last task change on web-prod-1?
+
+> Revert the changes from task abc123
+
+> Email me a summary of all security findings
 ```
 
 ## Files
@@ -106,6 +119,8 @@ servers:
 | Feature | GPT | Claude Extension |
 |---------|-----|------------------|
 | Task execution | Yes (via API Actions) | Yes (via MCP) |
+| Cross-infrastructure search | Yes | Yes |
+| Task changes & revert | Yes | Yes |
 | File upload/download | No | Yes |
 | Streaming output | No (request/response) | Yes (SSE) |
 | Proactive notifications | No (pull only) | No (pull only) |
