@@ -721,6 +721,127 @@ paths:
                         format: date-time
                         nullable: true
 
+  # ── SSH & Sudo Access ────────────────────────────────────────────────
+
+  /sshkeys/{agentId}:
+    post:
+      operationId: startAccessScan
+      summary: Start an SSH & sudo access scan
+      description: >
+        Trigger an SSH & sudo access scan on an agent. Discovers all
+        authorized_keys files and sudoers rules for every system user.
+        Returns immediately; use GET to poll for results.
+      parameters:
+        - name: agentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "202":
+          description: Access scan started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scan_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+        "409":
+          description: Scan already running
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "503":
+          description: Agent not online
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+    get:
+      operationId: getAccessScan
+      summary: Get SSH & sudo access scan results
+      description: >
+        Returns the status and discovered SSH keys + sudo rules from the
+        most recent access scan for an agent. SSH key fingerprints are
+        matched against ManageLM user profiles for identity mapping.
+      parameters:
+        - name: agentId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Access scan status and results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  scan:
+                    type: object
+                    nullable: true
+                    properties:
+                      status:
+                        type: string
+                        enum: [running, completed, failed]
+                      report:
+                        type: array
+                        description: System users with SSH keys and sudo rules
+                        items:
+                          type: object
+                          properties:
+                            username:
+                              type: string
+                            keys:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  type:
+                                    type: string
+                                  fingerprint:
+                                    type: string
+                                  managelm_user:
+                                    type: object
+                                    nullable: true
+                                    properties:
+                                      name:
+                                        type: string
+                                      email:
+                                        type: string
+                            sudo_rules:
+                              type: array
+                              items:
+                                type: object
+                                properties:
+                                  runas:
+                                    type: string
+                                  commands:
+                                    type: array
+                                    items:
+                                      type: string
+                                  nopasswd:
+                                    type: boolean
+                                  via_group:
+                                    type: string
+                                    nullable: true
+                      started_at:
+                        type: string
+                        format: date-time
+                      completed_at:
+                        type: string
+                        format: date-time
+                        nullable: true
+
   # ── Skills ───────────────────────────────────────────────────────────
 
   /skills:

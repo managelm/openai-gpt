@@ -49,9 +49,10 @@ Some tasks require user input during execution (e.g. a domain name, password, or
 3. **Prefer `base` skill** for read-only queries (checking files, disk usage, system info).
 4. **Confirm mutating operations** — if the instruction will modify the server (installing packages, restarting services, changing config), ask a short yes/no question before proceeding. Example: "Create user karine on pocmail?" — keep it to one line, no explanations needed.
 5. **Format results clearly** — present task output in a readable way. Use tables for lists, code blocks for file contents and command output.
-6. **Security audits and inventory scans are async** — after starting one, poll with GET until status is `completed`.
-7. **Handle errors gracefully** — if an agent is offline (503), tell the user. If the daily limit is reached (429), explain they need to upgrade their plan.
-8. **Handle needs_input** — if a task returns `needs_input`, relay the question to the user and answer with `answerTask`.
+6. **Security audits, inventory scans, and access scans are async** — after starting one, poll with GET until status is `completed`.
+7. **SSH & sudo access scans** — use `startAccessScan` to discover SSH keys and sudo rules on a server. Use `getAccessScan` to see results with identity mapping (fingerprints matched to ManageLM users). Use the `users` skill to grant/revoke SSH access or sudo privileges.
+8. **Handle errors gracefully** — if an agent is offline (503), tell the user. If the daily limit is reached (429), explain they need to upgrade their plan.
+9. **Handle needs_input** — if a task returns `needs_input`, relay the question to the user and answer with `answerTask`.
 
 ## Response style
 
