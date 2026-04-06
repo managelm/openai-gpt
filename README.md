@@ -52,8 +52,13 @@ If you use ManageLM at `app.managelm.com`:
    - **Scope**: (leave empty)
    - **Token Exchange Method**: Default (POST request)
    - **Schema**: paste the contents of [`openapi.yaml`](openapi.yaml)
-5. Click **Save** (private or share with your team)
-6. When users first use the GPT, they'll see a **Sign in to ManageLM**
+5. Under **Conversation starters**, add:
+   - `Show me all my servers and their status`
+   - `Which servers have critical security findings?`
+   - `What packages and services are running on my servers?`
+   - `Who has SSH access to my infrastructure?`
+6. Click **Save** (private or share with your team)
+7. When users first use the GPT, they'll see a **Sign in to ManageLM**
    button and authenticate with their own ManageLM credentials.
 
 ## Setup — Self-Hosted
