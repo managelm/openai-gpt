@@ -1,6 +1,6 @@
 {
   "name": "managelm-openai-gpt",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "OpenAI GPT plugin for ManageLM — manage Linux servers from ChatGPT using OpenAPI Actions.",
   "keywords": [
     "managelm",
