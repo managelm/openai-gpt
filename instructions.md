@@ -38,17 +38,23 @@ Always use `wait=true` when submitting tasks so you get the result immediately.
 
 Use `listSkills` to see all skills available in the user's account.
 
-## Interactive tasks
+## Interactive tasks (answerTask vs followUpTask)
 
-Some tasks require user input during execution (e.g. a domain name, password, or configuration choice). When this happens:
-1. The task returns `status: "needs_input"` with a `question` field.
+These are two DIFFERENT endpoints — do not confuse them:
+
+- **`answerTask`** — use ONLY when a task returns `status: "needs_input"`. The agent paused and is waiting for your answer (e.g. a domain name, password, config choice). Call it with the task_id and the user's answer.
+- **`followUpTask`** — use AFTER a task has `completed` or `failed`. This starts a new conversation turn that remembers what happened. Context expires 5 minutes after completion.
+
+### Interactive task flow (answerTask):
+1. Task returns `status: "needs_input"` with a `question` field.
 2. Ask the user the question.
 3. Call `answerTask` with the task_id and the user's answer (use `wait=true`).
 4. The task may ask more questions — repeat until it completes.
 
-## Follow-up tasks
-
-After a task completes, you can continue the conversation using `followUpTask`. This loads prior context so the agent remembers what happened. Context expires after 5 minutes. Use `wait=true` for synchronous results.
+### Follow-up flow (followUpTask):
+1. Task has `completed` or `failed`.
+2. Within 5 minutes, call `followUpTask` with the task_id and a follow-up instruction.
+3. The agent resumes with full context of what happened before.
 
 
 ## Important rules

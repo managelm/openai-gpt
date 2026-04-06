@@ -15,7 +15,17 @@ servers:
   - url: https://app.managelm.com/api
     description: ManageLM SaaS
 
+security:
+  - ApiKeyAuth: []
+
 components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: "Bearer token: paste your ManageLM API key (from Portal > Settings > MCP & API)"
+
   schemas:
     Agent:
       type: object
@@ -239,57 +249,6 @@ paths:
                     items:
                       $ref: "#/components/schemas/Agent"
 
-  /agents/{agentId}:
-    get:
-      operationId: getAgent
-      summary: Get agent details
-      description: Returns detailed information for a single agent.
-      parameters:
-        - name: agentId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "200":
-          description: Agent details
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  agent:
-                    $ref: "#/components/schemas/Agent"
-        "404":
-          description: Agent not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
-  /agents/{agentId}/approve:
-    post:
-      operationId: approveAgent
-      summary: Approve a pending agent
-      description: Approve an agent that has enrolled and is waiting for approval.
-      parameters:
-        - name: agentId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "200":
-          description: Agent approved
-        "404":
-          description: Agent not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
   /agents/stats:
     get:
       operationId: getDashboardStats
@@ -339,23 +298,78 @@ paths:
                         tasks:
                           type: integer
 
+  /agents/{agentId}:
+    get:
+      operationId: getAgent
+      summary: Get agent details
+      description: Returns detailed information for a single agent.
+      parameters:
+        - name: agentId
+          in: path
+          required: true
+          description: UUID of the target agent
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Agent details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agent:
+                    $ref: "#/components/schemas/Agent"
+        "404":
+          description: Agent not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /agents/{agentId}/approve:
+    post:
+      operationId: approveAgent
+      x-openai-isConsequential: true
+      summary: Approve a pending agent
+      description: Approve an agent that has enrolled and is waiting for approval.
+      parameters:
+        - name: agentId
+          in: path
+          required: true
+          description: UUID of the agent to approve
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Agent approved
+        "404":
+          description: Agent not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   # ── Tasks ────────────────────────────────────────────────────────────
 
   /tasks:
     post:
       operationId: submitTask
+      x-openai-isConsequential: true
       summary: Run a task on an agent
       description: >
         Submit a natural-language instruction to an agent. The agent executes
         it using the specified skill. Add ?wait=true to block until the result
-        is ready (recommended). Without it, you get a task_id for polling.
+        is ready (recommended, timeout 120s). Without it, you get a task_id
+        for polling.
       parameters:
         - name: wait
           in: query
           description: Block until the task completes (recommended)
           schema:
-            type: string
-            enum: ["true"]
+            type: boolean
       requestBody:
         required: true
         content:
@@ -371,8 +385,9 @@ paths:
                 skill_slug:
                   type: string
                   description: >
-                    Skill to use (e.g. "base", "packages", "services",
-                    "security", "network", "users", "system")
+                    Skill to use. Call listSkills for the full list. Common:
+                    "base", "packages", "services", "security", "network",
+                    "users", "system", "firewall", "docker"
                 instruction:
                   type: string
                   description: Natural-language instruction for the agent
@@ -421,21 +436,25 @@ paths:
       parameters:
         - name: agent_id
           in: query
+          description: Filter tasks by agent UUID
           schema:
             type: string
             format: uuid
         - name: status
           in: query
+          description: Filter by task status
           schema:
             type: string
             enum: [sent, running, completed, failed, timeout, needs_input, answered]
         - name: limit
           in: query
+          description: Max results to return
           schema:
             type: integer
             default: 50
         - name: offset
           in: query
+          description: Number of results to skip (for pagination)
           schema:
             type: integer
             default: 0
@@ -451,6 +470,9 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/Task"
+                  total:
+                    type: integer
+                    description: Total number of matching tasks
 
   /tasks/{taskId}:
     get:
@@ -463,6 +485,7 @@ paths:
         - name: taskId
           in: path
           required: true
+          description: UUID of the task
           schema:
             type: string
             format: uuid
@@ -486,25 +509,26 @@ paths:
   /tasks/{taskId}/answer:
     post:
       operationId: answerTask
+      x-openai-isConsequential: true
       summary: Answer an interactive task question
       description: >
-        When a task returns status needs_input, the agent is waiting for user
-        input (e.g. domain name, password, configuration choice). Use this
-        endpoint to provide the answer and resume the task. Supports wait=true
-        to block until the resumed task completes.
+        ONLY use when a task returns status "needs_input". The agent paused
+        because it needs user input (e.g. domain name, password, config choice).
+        Provide the answer to resume. For continuing a conversation after a
+        completed task, use followUpTask instead.
       parameters:
         - name: taskId
           in: path
           required: true
+          description: UUID of the task in needs_input status
           schema:
             type: string
             format: uuid
         - name: wait
           in: query
-          description: Block until the follow-up task completes
+          description: Block until the resumed task completes
           schema:
-            type: string
-            enum: ["true"]
+            type: boolean
       requestBody:
         required: true
         content:
@@ -561,6 +585,7 @@ paths:
   /security/{agentId}:
     post:
       operationId: startSecurityAudit
+      x-openai-isConsequential: true
       summary: Start a security audit
       description: >
         Trigger a security audit on an agent. Returns immediately with
@@ -569,6 +594,7 @@ paths:
         - name: agentId
           in: path
           required: true
+          description: UUID of the agent to audit
           schema:
             type: string
             format: uuid
@@ -603,11 +629,12 @@ paths:
       summary: Get security audit results
       description: >
         Returns the status and findings of the most recent security audit
-        for an agent.
+        for an agent. Returns null audit if no scan has been run yet.
       parameters:
         - name: agentId
           in: path
           required: true
+          description: UUID of the agent
           schema:
             type: string
             format: uuid
@@ -643,6 +670,7 @@ paths:
   /inventory/{agentId}:
     post:
       operationId: startInventoryScan
+      x-openai-isConsequential: true
       summary: Start an inventory scan
       description: >
         Trigger a system inventory scan on an agent. Discovers installed
@@ -652,6 +680,7 @@ paths:
         - name: agentId
           in: path
           required: true
+          description: UUID of the agent to scan
           schema:
             type: string
             format: uuid
@@ -686,11 +715,13 @@ paths:
       summary: Get inventory scan results
       description: >
         Returns the status and discovered components from the most recent
-        inventory scan for an agent.
+        inventory scan for an agent. Returns null inventory if no scan has
+        been run yet.
       parameters:
         - name: agentId
           in: path
           required: true
+          description: UUID of the agent
           schema:
             type: string
             format: uuid
@@ -726,6 +757,7 @@ paths:
   /sshkeys/{agentId}:
     post:
       operationId: startAccessScan
+      x-openai-isConsequential: true
       summary: Start an SSH & sudo access scan
       description: >
         Trigger an SSH & sudo access scan on an agent. Discovers all
@@ -735,6 +767,7 @@ paths:
         - name: agentId
           in: path
           required: true
+          description: UUID of the agent to scan
           schema:
             type: string
             format: uuid
@@ -982,8 +1015,7 @@ paths:
           in: query
           description: Only show unresolved findings (default true)
           schema:
-            type: string
-            enum: ["true", "false"]
+            type: boolean
         - name: group
           in: query
           description: Filter by server group name
@@ -1040,8 +1072,7 @@ paths:
           in: query
           description: Only show SSH keys not matched to any ManageLM user
           schema:
-            type: string
-            enum: ["true", "false"]
+            type: boolean
         - name: group
           in: query
           description: Filter by server group name
@@ -1126,8 +1157,7 @@ paths:
           in: query
           description: Only show NOPASSWD sudo rules
           schema:
-            type: string
-            enum: ["true", "false"]
+            type: boolean
         - name: group
           in: query
           description: Filter by server group name
@@ -1181,6 +1211,7 @@ paths:
         - name: taskId
           in: path
           required: true
+          description: UUID of the task
           schema:
             type: string
             format: uuid
@@ -1188,8 +1219,7 @@ paths:
           in: query
           description: Fetch full unified diff from agent (requires agent online)
           schema:
-            type: string
-            enum: ["true"]
+            type: boolean
       responses:
         "200":
           description: Changeset details
@@ -1233,6 +1263,7 @@ paths:
   /tasks/{taskId}/revert:
     post:
       operationId: revertTask
+      x-openai-isConsequential: true
       summary: Revert file changes from a task
       description: >
         Revert the file changes made by a specific task. Applies a reverse
@@ -1242,6 +1273,7 @@ paths:
         - name: taskId
           in: path
           required: true
+          description: UUID of the task to revert
           schema:
             type: string
             format: uuid
@@ -1277,11 +1309,13 @@ paths:
   /email:
     post:
       operationId: sendEmail
+      x-openai-isConsequential: true
       summary: Send an email to yourself
       description: >
-        Send an email to the authenticated user. Use this to deliver
-        reports, summaries, or notifications. The body is plain text
-        wrapped in the ManageLM email template.
+        Send an email to the authenticated user only — cannot specify
+        other recipients. Use this to deliver reports, summaries, or
+        notifications. The body is plain text wrapped in the ManageLM
+        email template.
       requestBody:
         required: true
         content:
@@ -1387,15 +1421,18 @@ paths:
   /tasks/{taskId}/follow-up:
     post:
       operationId: followUpTask
+      x-openai-isConsequential: true
       summary: Continue a conversation on a completed task
       description: >
-        Send a follow-up message to continue working with an agent after a
-        task completes. Loads prior conversation context from the completed
-        task. Context expires after 5 minutes. Supports wait=true.
+        Send a follow-up message AFTER a task has completed or failed.
+        Unlike answerTask (which is for needs_input status only), this
+        resumes a finished conversation. Context expires 5 minutes after
+        task completion. Supports wait=true.
       parameters:
         - name: taskId
           in: path
           required: true
+          description: UUID of the completed/failed task to follow up on
           schema:
             type: string
             format: uuid
@@ -1403,8 +1440,7 @@ paths:
           in: query
           description: Block until the follow-up task completes
           schema:
-            type: string
-            enum: ["true"]
+            type: boolean
       requestBody:
         required: true
         content:
