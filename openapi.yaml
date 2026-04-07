@@ -16,15 +16,14 @@ servers:
     description: ManageLM SaaS
 
 security:
-  - ApiKeyAuth: []
+  - BearerAuth: []
 
 components:
   securitySchemes:
-    ApiKeyAuth:
-      type: apiKey
-      in: header
-      name: Authorization
-      description: "Bearer token: paste your ManageLM API key (from Portal > Settings > MCP & API)"
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: "ManageLM API key (from Portal > Settings > MCP & API)"
 
   schemas:
     Agent:
