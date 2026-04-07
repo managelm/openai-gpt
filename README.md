@@ -1,94 +1,61 @@
-# ManageLM — OpenAI GPT Plugin
+<p align="center">
+  <a href="https://www.managelm.com">
+    <img src="https://www.managelm.com/assets/ManageLM.png" alt="ManageLM" height="50">
+  </a>
+</p>
 
-Manage your Linux servers directly from ChatGPT. Check agent status, run
-tasks, trigger security audits, and review inventory — all through natural
-language in the ChatGPT interface.
+<h3 align="center">ChatGPT Plugin</h3>
 
-ManageLM connects ChatGPT to your infrastructure through the same portal
-API used by the Claude extension, n8n integration, and Slack plugin.
+<p align="center">
+  Manage Linux &amp; Windows servers directly from ChatGPT using natural language.
+</p>
+
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License"></a>
+  <a href="https://www.managelm.com"><img src="https://img.shields.io/badge/website-managelm.com-cyan" alt="Website"></a>
+  <a href="https://www.managelm.com/plugins/chatgpt.html"><img src="https://img.shields.io/badge/docs-full%20documentation-green" alt="Docs"></a>
+</p>
+
+<p align="center">
+  <img src="assets/screenshot.png" alt="ChatGPT managing a Linux server — creating users, installing SSH keys" width="600">
+</p>
+
+---
+
+Check agent status, run tasks, trigger security audits, and review inventory — all through natural language in ChatGPT. The plugin uses OpenAI Actions (OpenAPI spec) to call the ManageLM portal REST API directly. Users authenticate with their own ManageLM credentials via OAuth 2.0.
 
 ## Features
 
 - **Agent management** — list servers, check status, health metrics, approve pending agents
 - **Task execution** — run natural-language instructions on any server using skills
-- **Interactive tasks** — when the agent needs input (domain name, password, config choice), GPT asks you and answers the agent automatically
-- **Security audits** — trigger and review security findings with severity levels
+- **Interactive tasks** — when the agent needs input, GPT asks you and answers the agent automatically
+- **Security audits** — trigger and review findings with severity levels and remediation
 - **Inventory scans** — discover packages, services, and containers
-- **Cross-infrastructure search** — search agents, inventory, security findings, SSH keys, and sudo rules across all servers without dispatching commands
-- **Task changes & revert** — view file changes made by tasks and revert them
-- **Groups & skills** — view server groups and available capabilities
-- **Account overview** — check team members and account details
-- **Email notifications** — send reports and summaries to your email
+- **Cross-infrastructure search** — search agents, inventory, security, SSH keys, sudo rules
+- **Task changes & revert** — view file diffs and undo changes
+- **Email reports** — send summaries to your inbox
 
-## Architecture
+## Quick Start
 
-```
-ChatGPT User --> Sign in to ManageLM --> ManageLM Portal API
-                 (OAuth 2.0)              /api/*
-                      |
-                 Bearer (OAuth token)
-```
+### 1. Create the GPT
 
-The GPT uses OpenAI Actions (OpenAPI spec) to call the ManageLM portal
-REST API directly. Users authenticate with their own ManageLM credentials
-via OAuth 2.0. No middleware or proxy is required.
-
-## Setup — SaaS
-
-If you use ManageLM at `app.managelm.com`:
-
-1. Go to [ChatGPT GPT Editor](https://chatgpt.com/gpts/editor)
-2. Click **Create a GPT**
-3. In the **Configure** tab:
+1. Go to [ChatGPT GPT Editor](https://chatgpt.com/gpts/editor) and click **Create a GPT**
+2. In the **Configure** tab:
    - **Name**: ManageLM
    - **Description**: Manage Linux servers through ManageLM
    - **Instructions**: paste the contents of [`instructions.md`](instructions.md)
-4. Under **Actions**, click **Create new action**:
+3. Under **Actions**, click **Create new action**:
    - **Authentication**: OAuth
-   - **Client ID**: your MCP Client ID from Portal > Settings > MCP & API
-   - **Client Secret**: your MCP Client Secret
+   - **Client ID / Secret**: from Portal > Settings > MCP & API
    - **Authorization URL**: `https://app.managelm.com/oauth/authorize`
    - **Token URL**: `https://app.managelm.com/oauth/token`
-   - **Scope**: (leave empty)
-   - **Token Exchange Method**: Default (POST request)
    - **Schema**: paste the contents of [`openapi.yaml`](openapi.yaml)
-5. Under **Conversation starters**, add:
-   - `Show me all my servers and their status`
-   - `Which servers have critical security findings?`
-   - `What packages and services are running on my servers?`
-   - `Who has SSH access to my infrastructure?`
-6. Click **Save** (private or share with your team)
-7. When users first use the GPT, they'll see a **Sign in to ManageLM**
-   button and authenticate with their own ManageLM credentials.
+4. Click **Save**
 
-## Setup — Self-Hosted
-
-Same steps as SaaS, with two changes:
-
-1. Edit the `servers` section in `openapi.yaml` before pasting:
-```yaml
-servers:
-  - url: https://your-portal.example.com/api
-    description: My ManageLM instance
-```
-
-2. Set the OAuth URLs to your portal:
-   - **Authorization URL**: `https://your-portal.example.com/oauth/authorize`
-   - **Token URL**: `https://your-portal.example.com/oauth/token`
-
-## Get Your OAuth Credentials
-
-1. Log in to your ManageLM portal
-2. Go to **Settings > MCP & API**
-3. Copy your **Client ID** (`mlm_cid_...`) and **Client Secret** (`mlm_sk_...`)
-4. If you don't have credentials yet, click **Regenerate** to create them
-
-## Example Usage
+### 2. Use it
 
 ```
 > Show me all my servers
-
-> What's the disk usage on web-prod-1?
 
 > Install nginx on staging-web-02
 
@@ -96,20 +63,31 @@ servers:
 
 > Which servers have CPU usage above 80%?
 
-> Which servers have nginx installed?
-
-> Show all critical security findings
-
 > Who has SSH access to the production servers?
-
-> Show all NOPASSWD sudo rules
-
-> What files did the last task change on web-prod-1?
-
-> Revert the changes from task abc123
 
 > Email me a summary of all security findings
 ```
+
+## Architecture
+
+```
+ChatGPT ── OpenAI Actions ──> ManageLM Portal ── WebSocket ──> Agent on Server
+            (OAuth 2.0)       (REST API)          (outbound      (local LLM,
+                                                   only)          skill exec)
+```
+
+No middleware or proxy required. Every task is cryptographically signed (Ed25519). Agents use a local LLM — your data never leaves your infrastructure.
+
+## Self-Hosted
+
+Edit the `servers` section in `openapi.yaml`:
+
+```yaml
+servers:
+  - url: https://your-portal.example.com/api
+```
+
+And update the OAuth URLs to point to your portal.
 
 ## Files
 
@@ -119,33 +97,26 @@ servers:
 | `instructions.md` | GPT system prompt — paste into GPT Instructions |
 | `icon.png` | GPT avatar icon |
 
-## Limitations vs Claude Extension
+## Requirements
 
-| Feature | GPT | Claude Extension |
-|---------|-----|------------------|
-| Task execution | Yes (via API Actions) | Yes (via MCP) |
-| Cross-infrastructure search | Yes | Yes |
-| Task changes & revert | Yes | Yes |
-| File upload/download | No | Yes |
-| Streaming output | No (request/response) | Yes (SSE) |
-| Proactive notifications | No (pull only) | No (pull only) |
-| Multi-agent targeting | One at a time | Hostname, group, or "all" |
+- **ChatGPT Plus** or Team/Enterprise
+- **ManageLM account** — [sign up free](https://app.managelm.com/register) (up to 10 agents)
+- **ManageLM Agent** — installed on each server you want to manage
 
-## Privacy
+## Other Integrations
 
-The GPT authenticates users via OAuth 2.0 and sends requests to the
-ManageLM portal API on their behalf. No data is stored by the GPT itself.
-All data handling is governed by your ManageLM portal's privacy policy.
-
-If publishing the GPT publicly, you must provide a privacy policy URL in
-the GPT editor. See [ManageLM Privacy Policy](https://www.managelm.com/privacy.html).
+- [Claude Code Extension](https://github.com/managelm/claude-extension) — MCP integration for Claude
+- [VS Code Extension](https://github.com/managelm/vscode-extension) — `@managelm` in Copilot Chat
+- [n8n Plugin](https://github.com/managelm/n8n-plugin) — infrastructure automation workflows
+- [Slack Plugin](https://github.com/managelm/slack-plugin) — notifications and commands in Slack
+- [OpenClaw Plugin](https://github.com/managelm/openclaw-plugin) — OpenClaw integration
 
 ## Links
 
-- [ManageLM Website](https://www.managelm.com)
-- [Documentation](https://www.managelm.com/doc/)
-- [GitHub](https://github.com/managelm/openai-gpt)
+- [Website](https://www.managelm.com)
+- [Full Documentation](https://www.managelm.com/plugins/chatgpt.html)
+- [Portal](https://app.managelm.com)
 
 ## License
 
-[MIT](LICENSE)
+[Apache 2.0](LICENSE)
