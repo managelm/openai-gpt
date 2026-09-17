@@ -7,7 +7,7 @@ info:
     certificates, monitors, backups, credentials, keystore, cloud resources)
     and act on cloud VMs. The same features as the ManageLM MCP server, with
     the signed-in user's permissions. 30 operations, the GPT Actions maximum.
-  version: 1.0.1
+  version: 1.0.2
   contact:
     name: ManageLM
     url: https://www.managelm.com
