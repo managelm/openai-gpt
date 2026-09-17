@@ -45,7 +45,9 @@ components:
         tags: { type: array, items: { type: string } }
         groups:
           type: array
-          description: "Group names (searchAgents), or {id, name} objects (getAgent)"
+          # Untyped items: the two operations return different shapes, and the
+          # GPT editor flags an array schema without items.
+          items: { description: "A group name (searchAgents), or an {id, name} object (getAgent)" }
         site: { type: string }
         last_seen_at: { type: string, format: date-time }
 
@@ -754,7 +756,12 @@ paths:
           description: Revert result
           content:
             application/json:
-              schema: { type: object }
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, description: "false when the server could not apply the revert: see output" }
+                  hostname: { type: string }
+                  output: { type: string, description: The server's revert output }
         "404":
           description: No changes to revert
           content:
@@ -930,7 +937,10 @@ paths:
           description: Email sent
           content:
             application/json:
-              schema: { type: object }
+              schema:
+                type: object
+                properties:
+                  message: { type: string, description: 'Confirmation, e.g. "Email sent to you@example.com"' }
         "429":
           description: Email limit reached
           content:
