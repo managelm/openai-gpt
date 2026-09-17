@@ -22,16 +22,15 @@
 
 ---
 
-Check agent status, run tasks, trigger security audits, and review inventory — all through natural language in ChatGPT. The plugin uses OpenAI Actions (OpenAPI spec) to call the ManageLM portal REST API directly. Users authenticate with their own ManageLM credentials via OAuth 2.0.
+Check server status, run tasks and scans, search your fleet and act on cloud VMs, all through natural language in ChatGPT. The plugin uses OpenAI Actions (OpenAPI spec) to call the ManageLM portal REST API directly, with the same features ManageLM gives Claude through MCP. Users authenticate with their own ManageLM credentials via OAuth 2.0 and act with their own permissions.
 
 ## Features
 
-- **Agent management** — list servers, check status, health metrics, approve pending agents
-- **Task execution** — run natural-language instructions on any server using skills
-- **Interactive tasks** — when the agent needs input, GPT asks you and answers the agent automatically
-- **Security audits** — trigger and review findings with severity levels and remediation
-- **Inventory scans** — discover packages, services, and containers
-- **Cross-infrastructure search** — search agents, inventory, security, SSH keys, sudo rules
+- **Task execution** — run natural-language instructions on any server using skills, or let the agent pick the skill
+- **Interactive tasks** — when the agent needs input, GPT asks you and answers the agent
+- **Scans** — security audits, inventory, SSH keys and sudo, certificates, user activity
+- **Fleet search** — inventory, security issues, activity, SSH keys, sudo rules, certificates, monitors, backups, credentials, keystore, cloud resources
+- **Hosting actions** — start, stop, reboot or snapshot a VM, with a confirmation every time
 - **Task changes & revert** — view file diffs and undo changes
 - **Email reports** — send summaries to your inbox
 
@@ -42,13 +41,14 @@ Check agent status, run tasks, trigger security audits, and review inventory —
 1. Go to [ChatGPT GPT Editor](https://chatgpt.com/gpts/editor) and click **Create a GPT**
 2. In the **Configure** tab:
    - **Name**: ManageLM
-   - **Description**: Manage Linux servers through ManageLM
+   - **Description**: Manage Linux and Windows servers through ManageLM
    - **Instructions**: paste the contents of [`instructions.md`](instructions.md)
 3. Under **Actions**, click **Create new action**:
    - **Authentication**: OAuth
    - **Client ID / Secret**: from Portal > Settings > MCP & API
    - **Authorization URL**: `https://app.managelm.com/oauth/authorize`
    - **Token URL**: `https://app.managelm.com/oauth/token`
+   - **Token Exchange Method**: Default (POST request). The portal reads the client credentials from the request body, so "Basic authorization header" fails
    - **Schema**: paste the contents of [`openapi.yaml`](openapi.yaml)
 4. Click **Save**
 
@@ -65,8 +65,29 @@ Check agent status, run tasks, trigger security audits, and review inventory —
 
 > Who has SSH access to the production servers?
 
+> Who logged in to db-primary yesterday?
+
+> Which certificates expire this month?
+
 > Email me a summary of all security findings
 ```
+
+## Operations (30)
+
+GPT Actions allow 30 operations, so the spec covers the ManageLM MCP tools in 30. Two lists stay out: the skill catalog (`list_available_skills`, too large for an action response) and the sites list. `get_cloud_info` is `searchCloud` plus `getConnectorActions`.
+
+| Area | Operations |
+|------|-----------|
+| Servers & account | `searchAgents`, `getAgent`, `getAgentSkills`, `getAccount`, `listGroups` |
+| Search | `searchInventory`, `searchSecurity`, `searchActivity`, `searchSshKeys`, `searchSudoRules`, `searchCertificates`, `searchPki`, `searchMonitors`, `searchBackups`, `searchCredentials`, `searchKeystore` |
+| Hosting | `listConnectors`, `searchCloud`, `getConnectorActions`, `runConnectorAction` |
+| Tasks | `submitTask`, `listTasks`, `getTask`, `answerTask`, `followUpTask`, `getTaskChanges`, `revertTask` |
+| Scans | `startScan`, `getScan` (security, inventory, sshkeys, certscan, activity) |
+| Utility | `sendEmail` |
+
+ChatGPT stops waiting for an action after 45 seconds, so tasks wait 35 seconds (`wait_seconds=35`). A longer task returns its ID, and the GPT checks it with `getTask`. Tasks and scans run on one server at a time. Approving agents, users, skills, groups, API keys and webhooks are managed in the portal.
+
+If you set an **MCP / API Key IP Whitelist** (per user, in Settings > MCP & API), add OpenAI's egress IP ranges to it, or ChatGPT's calls are refused with 403.
 
 ## Architecture
 
@@ -93,7 +114,7 @@ And update the OAuth URLs to point to your portal.
 
 | File | Purpose |
 |------|---------|
-| `openapi.yaml` | OpenAPI 3.1 schema — paste into GPT Actions |
+| `openapi.yaml` | OpenAPI 3.1 schema (30 operations) — paste into GPT Actions |
 | `instructions.md` | GPT system prompt — paste into GPT Instructions |
 | `icon.png` | GPT avatar icon |
 

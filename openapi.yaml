@@ -2,9 +2,11 @@ openapi: 3.1.0
 info:
   title: ManageLM
   description: >
-    Manage Linux servers through the ManageLM portal API.
-    Run tasks, check agent status, trigger security audits and inventory scans,
-    and manage groups and skills — all via natural language instructions.
+    Manage Linux and Windows servers through the ManageLM portal API: run tasks
+    and scans, search the fleet (inventory, security, activity, access,
+    certificates, monitors, backups, credentials, keystore, cloud resources)
+    and act on cloud VMs. The same features as the ManageLM MCP server, with
+    the signed-in user's permissions. 30 operations, the GPT Actions maximum.
   version: 1.0.1
   contact:
     name: ManageLM
@@ -23,1335 +25,141 @@ components:
     BearerAuth:
       type: http
       scheme: bearer
-      description: "ManageLM API key (from Portal > Settings > MCP & API)"
+      description: "OAuth access token for the signed-in ManageLM user, or a ManageLM API key (Portal > Settings > MCP & API)"
 
   schemas:
     Agent:
       type: object
       properties:
-        id:
-          type: string
-          format: uuid
-        hostname:
-          type: string
-        display_name:
-          type: string
-          nullable: true
-        status:
-          type: string
-          enum: [online, offline, pending]
-        agent_version:
-          type: string
-          nullable: true
-        os_info:
-          type: object
-          nullable: true
-          properties:
-            distro:
-              type: string
-            version:
-              type: string
-            kernel:
-              type: string
-            arch:
-              type: string
-        ip_address:
-          type: string
-          nullable: true
-        is_public:
-          type: boolean
-        tags:
-          type: array
-          items:
-            type: string
-          nullable: true
+        id: { type: string, format: uuid }
+        hostname: { type: string }
+        display_name: { type: string }
+        node_type: { type: string, description: "linux or windows" }
+        status: { type: string, description: "online, offline, approved, pending_approval" }
+        os_info: { type: string }
+        agent_version: { type: string }
+        ip_address: { type: string }
         health_metrics:
           type: object
-          nullable: true
-          description: "CPU, memory, disk usage, load average, uptime"
-          properties:
-            cpu_percent:
-              type: number
-            memory_percent:
-              type: number
-            disk_percent:
-              type: number
-            load_avg:
-              type: number
-        skill_names:
-          type: array
-          items:
-            type: string
-          description: Slugs of skills assigned to this agent
+          description: "cpu_percent, memory_percent, disk_percent, load_avg"
+        tags: { type: array, items: { type: string } }
         groups:
           type: array
-          items:
-            type: object
-            properties:
-              id:
-                type: string
-              name:
-                type: string
-        last_seen_at:
-          type: string
-          format: date-time
-          nullable: true
-        created_at:
-          type: string
-          format: date-time
+          description: "Group names (searchAgents), or {id, name} objects (getAgent)"
+        site: { type: string }
+        last_seen_at: { type: string, format: date-time }
 
     Task:
       type: object
       properties:
-        id:
-          type: string
-          format: uuid
-        agent_id:
-          type: string
-          format: uuid
-        skill_slug:
-          type: string
-        operation:
-          type: string
+        id: { type: string, format: uuid }
+        agent_id: { type: string, format: uuid }
+        skill_slug: { type: string }
         status:
           type: string
-          enum: [sent, running, completed, failed, timeout, needs_input, answered]
-        error_message:
-          type: string
-          nullable: true
-        summary:
-          type: string
-          nullable: true
+          description: "sent, completed, failed, timeout, needs_input, answered"
+        summary: { type: string }
         question:
           type: string
-          nullable: true
           description: Question from the agent when status is needs_input
-        mutating:
-          type: boolean
-        created_at:
-          type: string
-          format: date-time
-        completed_at:
-          type: string
-          format: date-time
-          nullable: true
+        error_message: { type: string }
+        mutating: { type: boolean }
+        created_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time }
 
-    SecurityFinding:
+    TaskOutcome:
+      type: object
+      description: >
+        200: the task finished within wait_seconds ({task, result}).
+        202: still running ({task_id, still_running: true}); check it later with getTask.
+      properties:
+        task: { $ref: "#/components/schemas/Task" }
+        result: { description: The task output from the agent }
+        task_id: { type: string, format: uuid }
+        still_running: { type: boolean }
+
+    Scan:
       type: object
       properties:
-        id:
-          type: string
-        severity:
-          type: string
-          enum: [critical, high, medium, low, pass]
-        category:
-          type: string
-        title:
-          type: string
-        explanation:
-          type: string
-        remediation:
-          type: string
-
-    InventoryItem:
-      type: object
-      properties:
-        id:
-          type: string
-        category:
-          type: string
-        name:
-          type: string
-        status:
-          type: string
-          enum: [running, stopped, installed, info]
-        version:
-          type: string
-        details:
-          type: string
-
-    Skill:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        slug:
-          type: string
-        name:
-          type: string
-        description:
-          type: string
-        version:
-          type: string
-
-    Group:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        name:
-          type: string
-        agent_count:
-          type: integer
-        agents:
-          type: array
-          items:
-            type: object
-            properties:
-              id:
-                type: string
-              hostname:
-                type: string
-              display_name:
-                type: string
-                nullable: true
-        skills:
-          type: array
-          items:
-            type: object
-            properties:
-              id:
-                type: string
-              slug:
-                type: string
-              name:
-                type: string
+        status: { type: string, description: "pending, running, completed, failed" }
+        report: { description: "Findings, items or entries, once completed" }
+        error_message: { type: string }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time }
 
     Error:
       type: object
       properties:
-        error:
-          type: string
+        error: { type: string }
 
 paths:
-  # ── Agents ───────────────────────────────────────────────────────────
-
-  /agents:
-    get:
-      operationId: listAgents
-      summary: List all agents
-      description: >
-        Returns all servers (agents) visible to the API key.
-        Includes status, health metrics, OS info, assigned skills, and groups.
-      responses:
-        "200":
-          description: Agent list
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  agents:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Agent"
-
-  /agents/stats:
-    get:
-      operationId: getDashboardStats
-      summary: Get dashboard statistics
-      description: >
-        Returns aggregate stats: total agents, online/offline counts,
-        task counts, and other account-wide metrics.
-      responses:
-        "200":
-          description: Dashboard stats
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  agents:
-                    type: object
-                    properties:
-                      total:
-                        type: integer
-                      online:
-                        type: integer
-                      offline:
-                        type: integer
-                      pending:
-                        type: integer
-                  tasks:
-                    type: object
-                    properties:
-                      total:
-                        type: integer
-                      completed:
-                        type: integer
-                      failed:
-                        type: integer
-                      last_24h:
-                        type: integer
-                  top_agents:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        id:
-                          type: string
-                        name:
-                          type: string
-                        tasks:
-                          type: integer
-
-  /agents/{agentId}:
-    get:
-      operationId: getAgent
-      summary: Get agent details
-      description: Returns detailed information for a single agent.
-      parameters:
-        - name: agentId
-          in: path
-          required: true
-          description: UUID of the target agent
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "200":
-          description: Agent details
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  agent:
-                    $ref: "#/components/schemas/Agent"
-        "404":
-          description: Agent not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
-  /agents/{agentId}/approve:
-    post:
-      operationId: approveAgent
-      x-openai-isConsequential: true
-      summary: Approve a pending agent
-      description: Approve an agent that has enrolled and is waiting for approval.
-      parameters:
-        - name: agentId
-          in: path
-          required: true
-          description: UUID of the agent to approve
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "200":
-          description: Agent approved
-        "404":
-          description: Agent not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
-  # ── Tasks ────────────────────────────────────────────────────────────
-
-  /tasks:
-    post:
-      operationId: submitTask
-      x-openai-isConsequential: true
-      summary: Run a task on an agent
-      description: >
-        Submit a natural-language instruction to an agent. The agent executes
-        it using the specified skill. Add ?wait=true to block until the result
-        is ready (recommended, timeout 120s). Without it, you get a task_id
-        for polling.
-      parameters:
-        - name: wait
-          in: query
-          description: Block until the task completes (recommended)
-          schema:
-            type: boolean
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [agent_id, skill_slug, instruction]
-              properties:
-                agent_id:
-                  type: string
-                  format: uuid
-                  description: ID of the target agent
-                skill_slug:
-                  type: string
-                  description: >
-                    Skill to use. Call listSkills for the full list. Common:
-                    "base", "packages", "services", "security", "network",
-                    "users", "system", "firewall", "docker"
-                instruction:
-                  type: string
-                  description: Natural-language instruction for the agent
-      responses:
-        "200":
-          description: Task completed (when wait=true)
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  task:
-                    $ref: "#/components/schemas/Task"
-                  result:
-                    description: The task output from the agent
-        "202":
-          description: Task submitted (async mode)
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  task_id:
-                    type: string
-                    format: uuid
-                  status:
-                    type: string
-        "429":
-          description: Daily request limit reached
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "503":
-          description: Agent not online
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
-    get:
-      operationId: listTasks
-      summary: List recent tasks
-      description: >
-        Returns recent tasks with optional filtering by agent and status.
-      parameters:
-        - name: agent_id
-          in: query
-          description: Filter tasks by agent UUID
-          schema:
-            type: string
-            format: uuid
-        - name: status
-          in: query
-          description: Filter by task status
-          schema:
-            type: string
-            enum: [sent, running, completed, failed, timeout, needs_input, answered]
-        - name: limit
-          in: query
-          description: Max results to return
-          schema:
-            type: integer
-            default: 50
-        - name: offset
-          in: query
-          description: Number of results to skip (for pagination)
-          schema:
-            type: integer
-            default: 0
-      responses:
-        "200":
-          description: Task list
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  tasks:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Task"
-                  total:
-                    type: integer
-                    description: Total number of matching tasks
-
-  /tasks/{taskId}:
-    get:
-      operationId: getTask
-      summary: Get task status and result
-      description: >
-        Check the status of a task. Use this to poll for results when
-        submitting tasks without wait=true.
-      parameters:
-        - name: taskId
-          in: path
-          required: true
-          description: UUID of the task
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "200":
-          description: Task details
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  task:
-                    $ref: "#/components/schemas/Task"
-        "404":
-          description: Task not found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
-  /tasks/{taskId}/answer:
-    post:
-      operationId: answerTask
-      x-openai-isConsequential: true
-      summary: Answer an interactive task question
-      description: >
-        ONLY use when a task returns status "needs_input". The agent paused
-        because it needs user input (e.g. domain name, password, config choice).
-        Provide the answer to resume. For continuing a conversation after a
-        completed task, use followUpTask instead.
-      parameters:
-        - name: taskId
-          in: path
-          required: true
-          description: UUID of the task in needs_input status
-          schema:
-            type: string
-            format: uuid
-        - name: wait
-          in: query
-          description: Block until the resumed task completes
-          schema:
-            type: boolean
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [answer]
-              properties:
-                answer:
-                  type: string
-                  description: Answer to the question asked by the agent
-      responses:
-        "200":
-          description: Follow-up task completed (when wait=true)
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  task:
-                    $ref: "#/components/schemas/Task"
-                  result:
-                    description: The task output from the agent
-        "202":
-          description: Follow-up task submitted (async mode)
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  task_id:
-                    type: string
-                    format: uuid
-                  status:
-                    type: string
-                  previous_task_id:
-                    type: string
-                    format: uuid
-        "409":
-          description: Task is not in needs_input state
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "410":
-          description: Session expired (context no longer available)
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
-  # ── Security Audits ──────────────────────────────────────────────────
-
-  /security/{agentId}:
-    post:
-      operationId: startSecurityAudit
-      x-openai-isConsequential: true
-      summary: Start a security audit
-      description: >
-        Trigger a security audit on an agent. Returns immediately with
-        audit_id. Use GET to poll for results.
-      parameters:
-        - name: agentId
-          in: path
-          required: true
-          description: UUID of the agent to audit
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "202":
-          description: Audit started
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  audit_id:
-                    type: string
-                    format: uuid
-                  status:
-                    type: string
-        "409":
-          description: Audit already running
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "503":
-          description: Agent not online
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
-    get:
-      operationId: getSecurityAudit
-      summary: Get security audit results
-      description: >
-        Returns the status and findings of the most recent security audit
-        for an agent. Returns null audit if no scan has been run yet.
-      parameters:
-        - name: agentId
-          in: path
-          required: true
-          description: UUID of the agent
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "200":
-          description: Audit status and findings
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  audit:
-                    type: object
-                    nullable: true
-                    properties:
-                      status:
-                        type: string
-                        enum: [running, completed, failed]
-                      report:
-                        type: array
-                        items:
-                          $ref: "#/components/schemas/SecurityFinding"
-                      started_at:
-                        type: string
-                        format: date-time
-                      completed_at:
-                        type: string
-                        format: date-time
-                        nullable: true
-
-  # ── Inventory ────────────────────────────────────────────────────────
-
-  /inventory/{agentId}:
-    post:
-      operationId: startInventoryScan
-      x-openai-isConsequential: true
-      summary: Start an inventory scan
-      description: >
-        Trigger a system inventory scan on an agent. Discovers installed
-        packages, running services, containers, and system components.
-        Returns immediately; use GET to poll for results.
-      parameters:
-        - name: agentId
-          in: path
-          required: true
-          description: UUID of the agent to scan
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "202":
-          description: Inventory scan started
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  inventory_id:
-                    type: string
-                    format: uuid
-                  status:
-                    type: string
-        "409":
-          description: Scan already running
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "503":
-          description: Agent not online
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
-    get:
-      operationId: getInventory
-      summary: Get inventory scan results
-      description: >
-        Returns the status and discovered components from the most recent
-        inventory scan for an agent. Returns null inventory if no scan has
-        been run yet.
-      parameters:
-        - name: agentId
-          in: path
-          required: true
-          description: UUID of the agent
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "200":
-          description: Inventory status and items
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  inventory:
-                    type: object
-                    nullable: true
-                    properties:
-                      status:
-                        type: string
-                        enum: [running, completed, failed]
-                      report:
-                        type: array
-                        items:
-                          $ref: "#/components/schemas/InventoryItem"
-                      started_at:
-                        type: string
-                        format: date-time
-                      completed_at:
-                        type: string
-                        format: date-time
-                        nullable: true
-
-  # ── SSH & Sudo Access ────────────────────────────────────────────────
-
-  /sshkeys/{agentId}:
-    post:
-      operationId: startAccessScan
-      x-openai-isConsequential: true
-      summary: Start an SSH & sudo access scan
-      description: >
-        Trigger an SSH & sudo access scan on an agent. Discovers all
-        authorized_keys files and sudoers rules for every system user.
-        Returns immediately; use GET to poll for results.
-      parameters:
-        - name: agentId
-          in: path
-          required: true
-          description: UUID of the agent to scan
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "202":
-          description: Access scan started
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  scan_id:
-                    type: string
-                    format: uuid
-                  status:
-                    type: string
-        "409":
-          description: Scan already running
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "503":
-          description: Agent not online
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
-    get:
-      operationId: getAccessScan
-      summary: Get SSH & sudo access scan results
-      description: >
-        Returns the status and discovered SSH keys + sudo rules from the
-        most recent access scan for an agent. SSH key fingerprints are
-        matched against ManageLM user profiles for identity mapping.
-      parameters:
-        - name: agentId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "200":
-          description: Access scan status and results
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  scan:
-                    type: object
-                    nullable: true
-                    properties:
-                      status:
-                        type: string
-                        enum: [running, completed, failed]
-                      report:
-                        type: array
-                        description: System users with SSH keys and sudo rules
-                        items:
-                          type: object
-                          properties:
-                            username:
-                              type: string
-                            keys:
-                              type: array
-                              items:
-                                type: object
-                                properties:
-                                  type:
-                                    type: string
-                                  fingerprint:
-                                    type: string
-                                  managelm_user:
-                                    type: object
-                                    nullable: true
-                                    properties:
-                                      name:
-                                        type: string
-                                      email:
-                                        type: string
-                            sudo_rules:
-                              type: array
-                              items:
-                                type: object
-                                properties:
-                                  runas:
-                                    type: string
-                                  commands:
-                                    type: array
-                                    items:
-                                      type: string
-                                  nopasswd:
-                                    type: boolean
-                                  via_group:
-                                    type: string
-                                    nullable: true
-                      started_at:
-                        type: string
-                        format: date-time
-                      completed_at:
-                        type: string
-                        format: date-time
-                        nullable: true
-
-  # ── Search ──────────────────────────────────────────────────────────
+  # ── Servers & account ────────────────────────────────────────────────
 
   /search/agents:
     get:
       operationId: searchAgents
-      summary: Search and filter agents
+      summary: Find servers
       description: >
-        Search agents by health metrics, OS, status, group, or free text.
-        Find servers with high CPU/memory/disk usage, specific OS versions,
-        or matching tags — without dispatching any commands.
+        List and filter servers by status, group, site, health metrics or text.
+        Call first to get a server's agent id. Each row includes status, OS, IPs,
+        health, groups and site.
       parameters:
-        - name: query
-          in: query
-          description: Free-text search on hostname, display_name, os_info, ip_address, or tags
-          schema:
-            type: string
-        - name: status
-          in: query
-          description: "Filter by status: online, offline, approved, pending_approval"
-          schema:
-            type: string
-        - name: group
-          in: query
-          description: Filter by server group name
-          schema:
-            type: string
-        - name: cpu_above
-          in: query
-          description: Only agents with CPU usage above this percentage
-          schema:
-            type: number
-        - name: memory_above
-          in: query
-          description: Only agents with memory usage above this percentage
-          schema:
-            type: number
-        - name: disk_above
-          in: query
-          description: Only agents with disk usage above this percentage
-          schema:
-            type: number
+        - { name: query, in: query, description: "Free text on hostname, display name, OS, IP or tags", schema: { type: string } }
+        - { name: status, in: query, description: "online, offline, approved, pending_approval", schema: { type: string } }
+        - { name: group, in: query, description: Group name, schema: { type: string } }
+        - { name: site, in: query, description: "Site name (datacenter, office, region)", schema: { type: string } }
+        - { name: cpu_above, in: query, description: CPU usage above this percentage, schema: { type: number } }
+        - { name: memory_above, in: query, description: Memory usage above this percentage, schema: { type: number } }
+        - { name: disk_above, in: query, description: Disk usage above this percentage, schema: { type: number } }
       responses:
         "200":
-          description: Matching agents
+          description: Matching servers
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  agents:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Agent"
+                  agents: { type: array, items: { $ref: "#/components/schemas/Agent" } }
 
-  /search/inventory:
+  /agents/{agentId}:
     get:
-      operationId: searchInventory
-      summary: Search system inventory across agents
-      description: >
-        Find which servers run a specific service, have a package installed,
-        or run containers. Queries the latest inventory scan reports — no
-        commands dispatched.
+      operationId: getAgent
+      summary: Get server details
+      description: Detailed information for one server (OS, IPs, health, groups, LLM status). For its skills, use getAgentSkills.
       parameters:
-        - name: query
-          in: query
-          description: "Free-text search on item name, version, or details (e.g. mysql, nginx, docker)"
-          schema:
-            type: string
-        - name: category
-          in: query
-          description: "Filter by category: service, package, container, network, storage, hardware, user, config, other"
-          schema:
-            type: string
-        - name: status
-          in: query
-          description: "Filter by status: running, stopped, installed, info"
-          schema:
-            type: string
-        - name: group
-          in: query
-          description: Filter by server group name
-          schema:
-            type: string
+        - { name: agentId, in: path, required: true, description: Agent id from searchAgents, schema: { type: string, format: uuid } }
       responses:
         "200":
-          description: Matching inventory items
+          description: Server details
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  items:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        hostname:
-                          type: string
-                        display_name:
-                          type: string
-                          nullable: true
-                        item_name:
-                          type: string
-                        item_category:
-                          type: string
-                        item_status:
-                          type: string
-                        item_version:
-                          type: string
-                        item_details:
-                          type: string
-
-  /search/security:
-    get:
-      operationId: searchSecurity
-      summary: Search security audit findings across agents
-      description: >
-        Find which servers have critical issues, SSH misconfigurations,
-        open ports, etc. Queries the latest audit reports — no commands
-        dispatched.
-      parameters:
-        - name: query
-          in: query
-          description: "Free-text search on finding title or explanation"
-          schema:
-            type: string
-        - name: severity
-          in: query
-          description: "Minimum severity: critical, high, medium, low (returns this level and above)"
-          schema:
-            type: string
-        - name: category
-          in: query
-          description: "Filter by category: SSH, Firewall, Cron, TLS, Users, Ports, Kernel, Services, etc."
-          schema:
-            type: string
-        - name: unresolved
-          in: query
-          description: Only show unresolved findings (default true)
-          schema:
-            type: boolean
-        - name: group
-          in: query
-          description: Filter by server group name
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Matching security findings
+                  agent: { $ref: "#/components/schemas/Agent" }
+        "400":
+          description: "Not an id: pass the uuid from searchAgents or a task response, not a name"
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  findings:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        hostname:
-                          type: string
-                        severity:
-                          type: string
-                        category:
-                          type: string
-                        title:
-                          type: string
-                        explanation:
-                          type: string
-                        remediation:
-                          type: string
-                        resolved:
-                          type: boolean
-
-  /search/ssh-keys:
-    get:
-      operationId: searchSshKeys
-      summary: Search SSH keys across infrastructure
-      description: >
-        Combines server-side authorized_keys from access scans with
-        ManageLM user profile keys. Find who has SSH access where,
-        list unknown keys, or get a team member's public key.
-      parameters:
-        - name: query
-          in: query
-          description: Search by fingerprint or system username
-          schema:
-            type: string
-        - name: user
-          in: query
-          description: "Filter by ManageLM user name or email. Use 'me' for yourself."
-          schema:
-            type: string
-        - name: unknown_only
-          in: query
-          description: Only show SSH keys not matched to any ManageLM user
-          schema:
-            type: boolean
-        - name: group
-          in: query
-          description: Filter by server group name
-          schema:
-            type: string
-      responses:
-        "200":
-          description: SSH key results
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  registered_keys:
-                    type: array
-                    description: Keys registered in ManageLM user profiles
-                    items:
-                      type: object
-                      properties:
-                        owner:
-                          type: object
-                          properties:
-                            name:
-                              type: string
-                            email:
-                              type: string
-                        key_name:
-                          type: string
-                        algorithm:
-                          type: string
-                        fingerprint:
-                          type: string
-                        public_key:
-                          type: string
-                  deployed_keys:
-                    type: array
-                    description: Keys found on servers via access scans
-                    items:
-                      type: object
-                      properties:
-                        server:
-                          type: string
-                        system_user:
-                          type: string
-                        keys:
-                          type: array
-                          items:
-                            type: object
-                            properties:
-                              fingerprint:
-                                type: string
-                              type:
-                                type: string
-                              owner:
-                                type: object
-                                nullable: true
-                                properties:
-                                  name:
-                                    type: string
-                                  email:
-                                    type: string
-
-  /search/sudo-rules:
-    get:
-      operationId: searchSudoRules
-      summary: Search sudo privileges across infrastructure
-      description: >
-        Find sudo privileges from access scan results. Search by system
-        username, ManageLM user, or filter for NOPASSWD rules.
-      parameters:
-        - name: query
-          in: query
-          description: Search by system username
-          schema:
-            type: string
-        - name: user
-          in: query
-          description: "Filter by ManageLM user name or email (matches via SSH key identity). Use 'me' for yourself."
-          schema:
-            type: string
-        - name: nopasswd_only
-          in: query
-          description: Only show NOPASSWD sudo rules
-          schema:
-            type: boolean
-        - name: group
-          in: query
-          description: Filter by server group name
-          schema:
-            type: string
-      responses:
-        "200":
-          description: Sudo rule results
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  rules:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        server:
-                          type: string
-                        system_user:
-                          type: string
-                        sudo_rules:
-                          type: array
-                          items:
-                            type: object
-                            properties:
-                              runas:
-                                type: string
-                              commands:
-                                type: array
-                                items:
-                                  type: string
-                              nopasswd:
-                                type: boolean
-                              via_group:
-                                type: string
-                                nullable: true
-
-  # ── Task Changes ────────────────────────────────────────────────────
-
-  /tasks/{taskId}/changes:
-    get:
-      operationId: getTaskChanges
-      summary: View file changes made by a task
-      description: >
-        Returns which files were modified by a task (in /etc/ and other
-        tracked directories). Optionally fetches the full unified diff
-        from the agent.
-      parameters:
-        - name: taskId
-          in: path
-          required: true
-          description: UUID of the task
-          schema:
-            type: string
-            format: uuid
-        - name: full_diff
-          in: query
-          description: Fetch full unified diff from agent (requires agent online)
-          schema:
-            type: boolean
-      responses:
-        "200":
-          description: Changeset details
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  changeset:
-                    type: object
-                    properties:
-                      task_id:
-                        type: string
-                      hostname:
-                        type: string
-                      skill:
-                        type: string
-                      task_summary:
-                        type: string
-                        nullable: true
-                      files_changed:
-                        type: array
-                        items:
-                          type: string
-                      changeset_summary:
-                        type: string
-                        nullable: true
-                      reverted:
-                        type: object
-                        nullable: true
-                      diff:
-                        type: string
-                        nullable: true
+              schema: { $ref: "#/components/schemas/Error" }
         "404":
-          description: Task not found or no changes
+          description: Server not found
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+              schema: { $ref: "#/components/schemas/Error" }
 
-  /tasks/{taskId}/revert:
-    post:
-      operationId: revertTask
-      x-openai-isConsequential: true
-      summary: Revert file changes from a task
-      description: >
-        Revert the file changes made by a specific task. Applies a reverse
-        patch from the agent's local git repo. Only works if the agent is
-        online and the changeset is within the 30-day retention window.
-      parameters:
-        - name: taskId
-          in: path
-          required: true
-          description: UUID of the task to revert
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "200":
-          description: Revert result
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  hostname:
-                    type: string
-                  output:
-                    type: string
-        "404":
-          description: No changeset found
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-        "409":
-          description: Already reverted or agent offline
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-
-  # ── Email ───────────────────────────────────────────────────────────
-
-  /email:
-    post:
-      operationId: sendEmail
-      x-openai-isConsequential: true
-      summary: Send an email to yourself
-      description: >
-        Send an email to the authenticated user only — cannot specify
-        other recipients. Use this to deliver reports, summaries, or
-        notifications. The body is plain text wrapped in the ManageLM
-        email template.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [subject, body]
-              properties:
-                subject:
-                  type: string
-                  description: Email subject line
-                body:
-                  type: string
-                  description: Email body in plain text
-      responses:
-        "200":
-          description: Email sent
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message:
-                    type: string
-
-  # ── Skills ───────────────────────────────────────────────────────────
-
-  /skills:
+  /agents/{agentId}/skills:
     get:
-      operationId: listSkills
-      summary: List account skills
+      operationId: getAgentSkills
+      summary: Skills on a server
       description: >
-        Returns all skills available in the account. Skills define what
-        capabilities agents have (packages, services, security, etc.).
+        Skills assigned to a server, directly or through a group. Use the slug as
+        skill_slug in submitTask.
+      parameters:
+        - { name: agentId, in: path, required: true, description: Agent id from searchAgents, schema: { type: string, format: uuid } }
       responses:
         "200":
-          description: Skill list
+          description: Assigned skills
           content:
             application/json:
               schema:
@@ -1360,86 +168,511 @@ paths:
                   skills:
                     type: array
                     items:
-                      $ref: "#/components/schemas/Skill"
+                      type: object
+                      properties:
+                        slug: { type: string }
+                        name: { type: string }
+                        description: { type: string }
+                        via_group: { type: boolean, description: "true when assigned through a group rather than directly" }
 
-  /skills/catalog:
+  /account:
     get:
-      operationId: listSkillCatalog
-      summary: List available skill catalog
+      operationId: getAccount
+      summary: Account and team members
       description: >
-        Returns pre-built skills available for import. Shows which ones
-        are already imported and which have upgrades available.
+        Account name and enabled features, and the team members with their role,
+        permissions (perm_*), system username and whether they registered an SSH key.
       responses:
         "200":
-          description: Catalog list
+          description: Account and users
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  catalog:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        slug:
-                          type: string
-                        name:
-                          type: string
-                        description:
-                          type: string
-                        imported:
-                          type: boolean
-                        upgrade_available:
-                          type: boolean
-
-  # ── Groups ───────────────────────────────────────────────────────────
+                  account: { type: object }
+                  users: { type: array, items: { type: object } }
 
   /groups:
     get:
       operationId: listGroups
-      summary: List agent groups
-      description: >
-        Returns all groups with their member agents, users, and assigned
-        skills. Groups allow managing skills and access for sets of agents.
+      summary: List server groups
+      description: Server groups with their servers and assigned skills. Group names are valid group filters.
       responses:
         "200":
-          description: Group list
+          description: Groups
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  groups:
-                    type: array
-                    items:
-                      $ref: "#/components/schemas/Group"
+                  groups: { type: array, items: { type: object } }
 
-  # ── Task Follow-up ───────────────────────────────────────────────────
+  # ── Search (read-only, queries stored data) ──────────────────────────
+
+  /search/inventory:
+    get:
+      operationId: searchInventory
+      summary: Search inventory
+      description: >
+        Find which servers run a service, have a package installed or run
+        containers, from stored inventory scans. Runs nothing on the servers.
+      parameters:
+        - { name: query, in: query, description: "Item name, version or details (e.g. nginx, docker)", schema: { type: string } }
+        - { name: category, in: query, description: "system, web, database, mail, container, network, storage, security, monitoring, log, user, scheduler, software, other", schema: { type: string } }
+        - { name: status, in: query, description: "running, stopped, installed, info", schema: { type: string } }
+        - { name: group, in: query, description: Group name, schema: { type: string } }
+        - { name: site, in: query, description: Site name, schema: { type: string } }
+      responses:
+        "200":
+          description: Matching items (item_name, item_category, item_status, item_version, per server)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { type: object } }
+
+  /search/security:
+    get:
+      operationId: searchSecurity
+      summary: Search security issues
+      description: >
+        Security issues across servers: audit findings, pentest findings and
+        threat alerts, each tagged with its source. Unresolved only by default.
+      parameters:
+        - { name: query, in: query, description: Search titles and explanations, schema: { type: string } }
+        - { name: severity, in: query, description: "Minimum severity: critical, high, medium, low", schema: { type: string } }
+        - { name: category, in: query, description: 'ssh, firewall, users, permissions, updates, kernel, tls, docker, ... ("Threat Detection" for threats)', schema: { type: string } }
+        - { name: source, in: query, description: "audit, pentest, threat, or all (default)", schema: { type: string, enum: [audit, pentest, threat, all] } }
+        - { name: unresolved, in: query, description: "Only open items (default true)", schema: { type: boolean } }
+        - { name: group, in: query, description: Group name, schema: { type: string } }
+        - { name: site, in: query, description: Site name, schema: { type: string } }
+        - { name: since, in: query, description: 'ISO-8601 date or datetime (inclusive), e.g. "2026-05-10"', schema: { type: string } }
+        - { name: until, in: query, description: ISO-8601 date or datetime (exclusive), schema: { type: string } }
+      responses:
+        "200":
+          description: Findings (severity, category, title, explanation, remediation, source, per server) and counts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  findings: { type: array, items: { type: object } }
+                  counts: { type: object }
+
+  /search/activity:
+    get:
+      operationId: searchActivity
+      summary: Search user activity
+      description: >
+        Logins, failed logins, sudo commands and file changes across servers,
+        from stored activity scans.
+      parameters:
+        - { name: query, in: query, description: "Username, command, source IP or file path", schema: { type: string } }
+        - { name: category, in: query, description: "sessions, failed_auth, root_commands, file_changes", schema: { type: string } }
+        - { name: user, in: query, description: System username or ManageLM user, schema: { type: string } }
+        - { name: group, in: query, description: Group name, schema: { type: string } }
+        - { name: site, in: query, description: Site name, schema: { type: string } }
+        - { name: since, in: query, description: 'ISO-8601 date or datetime (inclusive), e.g. "2026-05-10"', schema: { type: string } }
+        - { name: until, in: query, description: ISO-8601 date or datetime (exclusive), schema: { type: string } }
+      responses:
+        "200":
+          description: Activity entries
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  activity: { type: array, items: { type: object } }
+
+  /search/ssh-keys:
+    get:
+      operationId: searchSshKeys
+      summary: Search SSH keys
+      description: >
+        SSH keys deployed on servers and registered in ManageLM profiles, mapped
+        to team members. Use "user" to see one person's access.
+      parameters:
+        - { name: query, in: query, description: Fingerprint or system username, schema: { type: string } }
+        - { name: user, in: query, description: 'ManageLM user name or email ("me" for yourself)', schema: { type: string } }
+        - { name: unknown_only, in: query, description: Only keys not matched to a ManageLM user, schema: { type: boolean } }
+        - { name: group, in: query, description: Group name, schema: { type: string } }
+        - { name: site, in: query, description: Site name, schema: { type: string } }
+      responses:
+        "200":
+          description: Registered and deployed keys
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  registered_keys: { type: array, items: { type: object } }
+                  deployed_keys: { type: array, items: { type: object } }
+
+  /search/sudo-rules:
+    get:
+      operationId: searchSudoRules
+      summary: Search sudo rules
+      description: Sudo rules (Linux) and administrator group membership (Windows) across servers.
+      parameters:
+        - { name: query, in: query, description: System username, schema: { type: string } }
+        - { name: user, in: query, description: 'ManageLM user name or email ("me" for yourself)', schema: { type: string } }
+        - { name: nopasswd_only, in: query, description: Only NOPASSWD rules, schema: { type: boolean } }
+        - { name: group, in: query, description: Group name, schema: { type: string } }
+        - { name: site, in: query, description: Site name, schema: { type: string } }
+      responses:
+        "200":
+          description: Rules per server
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rules: { type: array, items: { type: object } }
+
+  /search/certs:
+    get:
+      operationId: searchCertificates
+      summary: Search certificates found on servers
+      description: >
+        x509 certificates discovered on servers by certificate scans: expired,
+        expiring, weak, self-signed, unmanaged. For certificates ManageLM issues, use searchPki.
+      parameters:
+        - { name: query, in: query, description: "Subject, issuer or path", schema: { type: string } }
+        - { name: status, in: query, description: "managed, unmanaged, expired, expiring, weak, self_signed", schema: { type: string } }
+        - { name: path, in: query, description: Filesystem path (partial), schema: { type: string } }
+        - { name: group, in: query, description: Group name, schema: { type: string } }
+        - { name: site, in: query, description: Site name, schema: { type: string } }
+      responses:
+        "200":
+          description: Certificates (subject, issuer, path, not_after, days_left, key and signature details)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  certs: { type: array, items: { type: object } }
+
+  /search/pki:
+    get:
+      operationId: searchPki
+      summary: Search managed certificates
+      description: Certificates ManageLM itself issues and renews (Internal CA and Let's Encrypt).
+      parameters:
+        - { name: query, in: query, description: "Common name, agent or SAN", schema: { type: string } }
+        - { name: status, in: query, description: "active, revoked, expired, failed, pending", schema: { type: string } }
+        - { name: source, in: query, description: "local_ca, letsencrypt", schema: { type: string } }
+        - { name: agent, in: query, description: Server hostname or display name, schema: { type: string } }
+        - { name: site, in: query, description: Site name, schema: { type: string } }
+      responses:
+        "200":
+          description: Managed certificates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  certificates: { type: array, items: { type: object } }
+                  truncated: { type: boolean }
+
+  /search/monitors:
+    get:
+      operationId: searchMonitors
+      summary: Search monitors
+      description: >
+        Monitors with their current status (up, down, degraded, pending, or
+        stalled when the server is offline), value and unit.
+      parameters:
+        - { name: query, in: query, description: "Monitor name, server or type", schema: { type: string } }
+        - { name: status, in: query, description: "up, down, degraded, pending, stalled", schema: { type: string } }
+        - { name: slug, in: query, description: "Monitor type: website, mysql, smtp, cpu, memory, filesystem, process, ...", schema: { type: string } }
+        - { name: agent, in: query, description: Server hostname or display name, schema: { type: string } }
+        - { name: site, in: query, description: Site name, schema: { type: string } }
+      responses:
+        "200":
+          description: Monitors
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  monitors: { type: array, items: { type: object } }
+                  truncated: { type: boolean }
+
+  /search/backups:
+    get:
+      operationId: searchBackups
+      summary: Search backups
+      description: Filesystem backups with status, schedule, snapshot count and last run.
+      parameters:
+        - { name: query, in: query, description: "Backup name, source path or server", schema: { type: string } }
+        - { name: status, in: query, description: "pending, running, ok, failed", schema: { type: string } }
+        - { name: agent, in: query, description: Server hostname or display name, schema: { type: string } }
+        - { name: site, in: query, description: Site name, schema: { type: string } }
+      responses:
+        "200":
+          description: Backups
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  backups: { type: array, items: { type: object } }
+                  truncated: { type: boolean }
+
+  /search/credentials:
+    get:
+      operationId: searchCredentials
+      summary: Search rotating credentials
+      description: >
+        Credentials ManageLM rotates: last and next rotation, state, failures.
+        Metadata only; secret values can never be retrieved.
+      parameters:
+        - { name: query, in: query, description: "Name, account, host or connector", schema: { type: string } }
+        - { name: state, in: query, description: "active, failed, pending, rotating", schema: { type: string } }
+        - { name: type, in: query, description: "Kind or backend (substring): password, ssh_key, ldap, entra, ...", schema: { type: string } }
+        - { name: agent, in: query, description: Server hostname or display name, schema: { type: string } }
+        - { name: site, in: query, description: Site name, schema: { type: string } }
+      responses:
+        "200":
+          description: Credentials
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  credentials: { type: array, items: { type: object } }
+                  truncated: { type: boolean }
+
+  /search/keystore:
+    get:
+      operationId: searchKeystore
+      summary: Search the keystore
+      description: >
+        KSM Keystore keys, the applications using them, and per-day usage or
+        refusals. Metadata only; key material never leaves the keystore.
+      parameters:
+        - { name: view, in: query, description: "keys (default), clients, denied, activity", schema: { type: string, enum: [keys, clients, denied, activity] } }
+        - { name: query, in: query, description: "Key, handle, application, caller or refusal reason", schema: { type: string } }
+        - { name: agent, in: query, description: Server hostname or display name, schema: { type: string } }
+      responses:
+        "200":
+          description: Rows for the requested view
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  view: { type: string }
+                  rows: { type: array, items: { type: object } }
+                  truncated: { type: boolean }
+
+  /search/connectors:
+    get:
+      operationId: listConnectors
+      summary: List hosting connectors
+      description: Hosting connectors (AWS, Azure, GCP, OpenStack, Proxmox, VMware) with sync status and resource counts.
+      responses:
+        "200":
+          description: Connectors
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  connectors: { type: array, items: { type: object } }
+
+  /search/cloud:
+    get:
+      operationId: searchCloud
+      summary: Search cloud resources
+      description: >
+        VMs, volumes, networks and security groups discovered by hosting
+        connectors. Each row carries the id and connector_id runConnectorAction needs.
+      parameters:
+        - { name: query, in: query, description: "Resource name, provider id or region", schema: { type: string } }
+        - { name: type, in: query, description: "vm, volume, network, security_group", schema: { type: string } }
+        - { name: status, in: query, description: "Provider-side status (running, stopped, ...)", schema: { type: string } }
+        - { name: provider, in: query, description: "aws, azure, gcp, vmware, proxmox, openstack", schema: { type: string } }
+        - { name: connector, in: query, description: Connector name, schema: { type: string } }
+        - { name: unmatched, in: query, description: Only VMs with no ManageLM agent, schema: { type: boolean } }
+      responses:
+        "200":
+          description: Resources
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  resources: { type: array, items: { type: object } }
+                  truncated: { type: boolean }
+
+  # ── Tasks ────────────────────────────────────────────────────────────
+
+  /tasks:
+    post:
+      operationId: submitTask
+      x-openai-isConsequential: true
+      summary: Run a task on a server
+      description: >
+        Run a natural-language instruction on one server with a skill. Waits up to
+        wait_seconds: 200 with the result, or 202 with still_running and the
+        task_id to check later with getTask.
+      parameters:
+        - { name: wait_seconds, in: query, required: true, description: "Always 35", schema: { type: integer, minimum: 1, maximum: 40, default: 35 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [agent_id, skill_slug, instruction]
+              properties:
+                agent_id: { type: string, format: uuid, description: Agent id from searchAgents }
+                skill_slug:
+                  type: string
+                  description: 'A skill slug from getAgentSkills (e.g. base, packages, services, users), or "auto" to let the agent choose'
+                instruction: { type: string, description: "What to do, in plain language. Be specific." }
+      responses:
+        "200":
+          description: Task finished
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TaskOutcome" }
+        "202":
+          description: Task still running
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TaskOutcome" }
+        "400":
+          description: Invalid request (e.g. the skill cannot run this kind of task)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: No access to this server, or the skill is not allowed for the user
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404":
+          description: Server or skill not found, or tasks are disabled for this account (No LLM mode)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "429":
+          description: Daily request limit reached
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "503":
+          description: Server not online
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+    get:
+      operationId: listTasks
+      summary: Task history
+      description: Recent tasks, newest first, optionally for one server, a status or a time range.
+      parameters:
+        - { name: agent_id, in: query, description: Agent id from searchAgents, schema: { type: string, format: uuid } }
+        - { name: status, in: query, description: "sent, completed, failed, timeout, needs_input, answered", schema: { type: string } }
+        - { name: since, in: query, description: 'ISO-8601 date or datetime (inclusive), e.g. "2026-05-10"', schema: { type: string } }
+        - { name: until, in: query, description: ISO-8601 date or datetime (exclusive), schema: { type: string } }
+        - { name: limit, in: query, required: true, description: "Max results. Always send it: each task carries its full request and output, and the portal default of 50 is too large for an action response.", schema: { type: integer, default: 10, minimum: 1, maximum: 20 } }
+        - { name: offset, in: query, description: Results to skip, schema: { type: integer, default: 0 } }
+      responses:
+        "200":
+          description: Tasks
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tasks: { type: array, items: { $ref: "#/components/schemas/Task" } }
+
+  /tasks/{taskId}:
+    get:
+      operationId: getTask
+      summary: Get task status and result
+      description: Status, summary, question and result of a task. Use it for a task that was still running.
+      parameters:
+        - { name: taskId, in: path, required: true, description: Task id, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Task
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  task: { $ref: "#/components/schemas/Task" }
+        "400":
+          description: "Not an id: pass the uuid from searchAgents or a task response, not a name"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404":
+          description: Task not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /tasks/{taskId}/answer:
+    post:
+      operationId: answerTask
+      x-openai-isConsequential: true
+      summary: Answer a task's question
+      description: >
+        ONLY for a task in status needs_input: send the user's answer (a domain
+        name, password, choice, ...) and resume it. To continue after a completed
+        task, use followUpTask.
+      parameters:
+        - { name: taskId, in: path, required: true, description: Id of the task in needs_input status, schema: { type: string, format: uuid } }
+        - { name: wait_seconds, in: query, required: true, description: "Always 35", schema: { type: integer, minimum: 1, maximum: 40, default: 35 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [answer]
+              properties:
+                answer: { type: string, description: "The user's answer to the agent's question" }
+      responses:
+        "200":
+          description: Resumed task finished
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TaskOutcome" }
+        "202":
+          description: Resumed task still running
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TaskOutcome" }
+        "409":
+          description: Task is not waiting for input
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "410":
+          description: Conversation context expired
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
 
   /tasks/{taskId}/follow-up:
     post:
       operationId: followUpTask
       x-openai-isConsequential: true
-      summary: Continue a conversation on a completed task
+      summary: Continue a completed task
       description: >
-        Send a follow-up message AFTER a task has completed or failed.
-        Unlike answerTask (which is for needs_input status only), this
-        resumes a finished conversation. Context expires 5 minutes after
-        task completion. Supports wait=true.
+        Continue the conversation of a completed or failed task with a new
+        instruction. The agent keeps the context for 5 minutes after the task ends.
       parameters:
-        - name: taskId
-          in: path
-          required: true
-          description: UUID of the completed/failed task to follow up on
-          schema:
-            type: string
-            format: uuid
-        - name: wait
-          in: query
-          description: Block until the follow-up task completes
-          schema:
-            type: boolean
+        - { name: taskId, in: path, required: true, description: Id of the completed task, schema: { type: string, format: uuid } }
+        - { name: wait_seconds, in: query, required: true, description: "Always 35", schema: { type: integer, minimum: 1, maximum: 40, default: 35 } }
       requestBody:
         required: true
         content:
@@ -1448,81 +681,242 @@ paths:
               type: object
               required: [instruction]
               properties:
-                instruction:
-                  type: string
-                  description: Follow-up message or question for the agent
+                instruction: { type: string, description: Follow-up request }
       responses:
         "200":
-          description: Follow-up task completed (when wait=true)
+          description: Follow-up finished
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  task:
-                    $ref: "#/components/schemas/Task"
-                  result:
-                    description: The task output from the agent
+              schema: { $ref: "#/components/schemas/TaskOutcome" }
         "202":
-          description: Follow-up task submitted (async mode)
+          description: Follow-up still running
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  task_id:
-                    type: string
-                    format: uuid
-                  status:
-                    type: string
-                  previous_task_id:
-                    type: string
-                    format: uuid
+              schema: { $ref: "#/components/schemas/TaskOutcome" }
+        "409":
+          description: The task has not completed yet (use answerTask for a question)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
         "410":
-          description: Context expired (task completed more than 5 minutes ago)
+          description: Conversation context expired
           content:
             application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+              schema: { $ref: "#/components/schemas/Error" }
 
-  # ── Account ──────────────────────────────────────────────────────────
-
-  /account:
+  /tasks/{taskId}/changes:
     get:
-      operationId: getAccount
-      summary: Get account info
-      description: Returns account details including team members.
+      operationId: getTaskChanges
+      summary: Files changed by a task
+      description: Files a task modified, with an optional full unified diff fetched from the server (server must be online).
+      parameters:
+        - { name: taskId, in: path, required: true, description: Task id, schema: { type: string, format: uuid } }
+        - { name: full_diff, in: query, description: Include the full diff, schema: { type: boolean } }
       responses:
         "200":
-          description: Account info
+          description: Changeset
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  account:
-                    type: object
-                    properties:
-                      id:
-                        type: string
-                        format: uuid
-                      name:
-                        type: string
-                      created_at:
-                        type: string
-                        format: date-time
-                  users:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        id:
-                          type: string
-                        first_name:
-                          type: string
-                        last_name:
-                          type: string
-                        email:
-                          type: string
-                        account_role:
-                          type: string
+                  changeset: { type: object }
+        "404":
+          description: No changes recorded for this task
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /tasks/{taskId}/revert:
+    post:
+      operationId: revertTask
+      x-openai-isConsequential: true
+      summary: Revert a task's file changes
+      description: >
+        Undo the file changes of a task (server online, changes under 30 days old).
+        Show the changes with getTaskChanges and confirm with the user first. It can
+        take up to a minute: if the call fails, check getTaskChanges before retrying.
+      parameters:
+        - { name: taskId, in: path, required: true, description: Task id to revert, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Revert result
+          content:
+            application/json:
+              schema: { type: object }
+        "404":
+          description: No changes to revert
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "409":
+          description: Already reverted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "503":
+          description: Server not online
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  # ── Scans (start, then read the result) ──────────────────────────────
+
+  /{scan}/{agentId}:
+    post:
+      operationId: startScan
+      x-openai-isConsequential: false
+      summary: Start a scan on a server
+      description: >
+        Start a scan on one server. security: security audit; inventory: services,
+        packages, containers; sshkeys: SSH keys and sudo rules; certscan:
+        certificates; activity: logins, sudo, file changes (last 24 h). Then call getScan.
+      parameters:
+        - { name: scan, in: path, required: true, description: Scan type, schema: { type: string, enum: [security, inventory, sshkeys, certscan, activity] } }
+        - { name: agentId, in: path, required: true, description: Agent id from searchAgents, schema: { type: string, format: uuid } }
+      responses:
+        "202":
+          description: Scan started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+        "409":
+          description: A scan of this type is already running on the server
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "503":
+          description: Server not online
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+    get:
+      operationId: getScan
+      summary: Latest scan result of a server
+      description: >
+        The latest scan of this type on a server. The scan is under "audit"
+        (security, activity), "inventory" or "scan" (sshkeys, certscan). Status
+        pending or running: not finished yet.
+      parameters:
+        - { name: scan, in: path, required: true, description: Scan type, schema: { type: string, enum: [security, inventory, sshkeys, certscan, activity] } }
+        - { name: agentId, in: path, required: true, description: Agent id from searchAgents, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Latest scan, or null when none has run
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  audit: { $ref: "#/components/schemas/Scan" }
+                  inventory: { $ref: "#/components/schemas/Scan" }
+                  scan: { $ref: "#/components/schemas/Scan" }
+
+  # ── Hosting ──────────────────────────────────────────────────────────
+
+  /connectors/{connectorId}/actions:
+    get:
+      operationId: getConnectorActions
+      summary: Actions a connector allows
+      description: >
+        The VM actions a hosting connector allows (id, label, description, risk,
+        params). Check the risk before runConnectorAction.
+      parameters:
+        - { name: connectorId, in: path, required: true, description: connector_id from searchCloud, schema: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Permitted actions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  write_mode: { type: string }
+                  actions: { type: array, items: { type: object } }
+        "404":
+          description: Connector not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+    post:
+      operationId: runConnectorAction
+      x-openai-isConsequential: true
+      summary: Run an action on a VM
+      description: >
+        Start, shut down, stop, reboot or snapshot one VM through its hosting
+        connector. Name the VM and the action to the user and get an explicit yes
+        before calling, especially for disruptive actions.
+      parameters:
+        - { name: connectorId, in: path, required: true, description: connector_id from searchCloud, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [resource_id, action]
+              properties:
+                resource_id: { type: string, format: uuid, description: The VM's id from searchCloud }
+                action: { type: string, description: "Action id from getConnectorActions, e.g. vm.start, vm.shutdown, vm.reboot, vm.snapshot.create" }
+                params: { type: object, description: 'Action parameters, e.g. {"name": "before-upgrade"} for a snapshot' }
+      responses:
+        "200":
+          description: Action accepted (pending true while the hypervisor finishes)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  detail: { type: string }
+                  pending: { type: boolean }
+        "400":
+          description: Unknown action, or it does not apply to this resource
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "403":
+          description: Missing the Hosting permission, write mode disabled, or the action is not allowed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "404":
+          description: Connector or resource not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  # ── Utility ──────────────────────────────────────────────────────────
+
+  /email:
+    post:
+      operationId: sendEmail
+      x-openai-isConsequential: false
+      summary: Email yourself a report
+      description: Send a plain-text email to the signed-in user's own address.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subject, body]
+              properties:
+                subject: { type: string, description: Email subject }
+                body: { type: string, description: Plain-text body; blank lines separate paragraphs }
+      responses:
+        "200":
+          description: Email sent
+          content:
+            application/json:
+              schema: { type: object }
+        "429":
+          description: Email limit reached
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
