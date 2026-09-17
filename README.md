@@ -69,7 +69,7 @@ Check server status, run tasks and scans, search your fleet and act on cloud VMs
 
 > Which certificates expire this month?
 
-> Email me a summary of all security findings
+> Email me a summary of the critical security findings
 ```
 
 ## Operations (30)

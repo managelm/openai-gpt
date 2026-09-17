@@ -64,6 +64,7 @@ components:
           description: Question from the agent when status is needs_input
         error_message: { type: string }
         mutating: { type: boolean }
+        response_payload: { description: "The agent's full output (getTask, listTasks)" }
         created_at: { type: string, format: date-time }
         completed_at: { type: string, format: date-time }
 
@@ -260,6 +261,11 @@ paths:
                 properties:
                   findings: { type: array, items: { type: object } }
                   counts: { type: object }
+        "400":
+          description: "since or until is not a date: use ISO-8601, e.g. 2026-05-10"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
 
   /search/activity:
     get:
@@ -285,6 +291,11 @@ paths:
                 type: object
                 properties:
                   activity: { type: array, items: { type: object } }
+        "400":
+          description: "since or until is not a date: use ISO-8601, e.g. 2026-05-10"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
 
   /search/ssh-keys:
     get:
@@ -546,12 +557,12 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/TaskOutcome" }
         "400":
-          description: Invalid request (e.g. the skill cannot run this kind of task)
+          description: Invalid request, or the skill is not allowed for this user or cannot run this kind of task
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
         "403":
-          description: No access to this server, or the skill is not allowed for the user
+          description: No access to this server
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
@@ -561,7 +572,7 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
         "429":
-          description: Daily request limit reached
+          description: Daily request limit reached, or more than 30 tasks in a minute for this user
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
@@ -849,8 +860,8 @@ paths:
       summary: Run an action on a VM
       description: >
         Start, shut down, stop, reboot or snapshot one VM through its hosting
-        connector. Name the VM and the action to the user and get an explicit yes
-        before calling, especially for disruptive actions.
+        connector. Get an explicit yes naming the VM and action first. It can take
+        up to a minute: if the call fails, check the VM with searchCloud before retrying.
       parameters:
         - { name: connectorId, in: path, required: true, description: connector_id from searchCloud, schema: { type: string, format: uuid } }
       requestBody:
@@ -887,6 +898,11 @@ paths:
               schema: { $ref: "#/components/schemas/Error" }
         "404":
           description: Connector or resource not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "502":
+          description: The cloud provider refused or failed the action
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }
