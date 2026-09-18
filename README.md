@@ -22,7 +22,7 @@
 
 ---
 
-Check server status, run tasks and scans, search your fleet and act on cloud VMs, all through natural language in ChatGPT. The plugin uses OpenAI Actions (OpenAPI spec) to call the ManageLM portal REST API directly, with the same features ManageLM gives Claude through MCP. Users authenticate with their own ManageLM credentials via OAuth 2.0 and act with their own permissions.
+Check server status, run tasks and scans, search your fleet and act on cloud VMs, all through natural language in ChatGPT. The plugin uses OpenAI Actions (OpenAPI spec) to call the ManageLM portal REST API directly, with nearly all the features ManageLM gives Claude through MCP (see [Operations](#operations-30) for what stays out). Users authenticate with their own ManageLM credentials via OAuth 2.0 and act with their own permissions.
 
 ## Features
 
@@ -74,7 +74,7 @@ Check server status, run tasks and scans, search your fleet and act on cloud VMs
 
 ## Operations (30)
 
-GPT Actions allow 30 operations, so the spec covers the ManageLM MCP tools in 30. Two lists stay out: the skill catalog (`list_available_skills`, too large for an action response) and the sites list. `get_cloud_info` is `searchCloud` plus `getConnectorActions`.
+GPT Actions allow 30 operations, so the spec covers the ManageLM MCP tools in 30. What stays out: the skill catalog (`list_available_skills`, too large for an action response), scheduled tasks (`search_schedules`), and the sites list and the plan and usage limits that `get_account_info` returns. `get_cloud_info` is `searchCloud` plus `getConnectorActions`.
 
 | Area | Operations |
 |------|-----------|
@@ -87,17 +87,19 @@ GPT Actions allow 30 operations, so the spec covers the ManageLM MCP tools in 30
 
 ChatGPT stops waiting for an action after 45 seconds, so tasks wait 35 seconds (`wait_seconds=35`). A longer task returns its ID, and the GPT checks it with `getTask`. Tasks and scans run on one server at a time. Approving agents, users, skills, groups, API keys and webhooks are managed in the portal.
 
+On an account set to No LLM, `submitTask`, `answerTask`, `followUpTask` and `getAgentSkills` answer 404; searches and scans still work.
+
 If you set an **MCP / API Key IP Whitelist** (per user, in Settings > MCP & API), add OpenAI's egress IP ranges to it, or ChatGPT's calls are refused with 403.
 
 ## Architecture
 
 ```
 ChatGPT ── OpenAI Actions ──> ManageLM Portal ── WebSocket ──> Agent on Server
-            (OAuth 2.0)       (REST API)          (outbound      (local LLM,
+            (OAuth 2.0)       (REST API)          (outbound      (your LLM,
                                                    only)          skill exec)
 ```
 
-No middleware or proxy required. Every task is cryptographically signed (Ed25519). Agents use a local LLM — your data never leaves your infrastructure.
+No middleware or proxy required. Every task is cryptographically signed (Ed25519). Each agent calls the LLM you configure for it: with a local model, your data never leaves your infrastructure.
 
 ## Self-Hosted
 
