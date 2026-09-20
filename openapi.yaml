@@ -6,7 +6,7 @@ info:
     and scans, search the fleet (inventory, security, activity, access,
     certificates, monitors, backups, credentials, keystore, cloud resources)
     and act on cloud VMs. The same features as the ManageLM MCP server, with
-    the signed-in user's permissions. 30 operations, the GPT Actions maximum.
+    the signed-in user's permissions. 29 operations, within the GPT Actions maximum of 30.
   version: 1.0.2
   contact:
     name: ManageLM
@@ -910,39 +910,6 @@ paths:
               schema: { $ref: "#/components/schemas/Error" }
         "502":
           description: The cloud provider refused or failed the action
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Error" }
-
-  # ── Utility ──────────────────────────────────────────────────────────
-
-  /email:
-    post:
-      operationId: sendEmail
-      x-openai-isConsequential: false
-      summary: Email yourself a report
-      description: Send a plain-text email to the signed-in user's own address.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required: [subject, body]
-              properties:
-                subject: { type: string, description: Email subject }
-                body: { type: string, description: Plain-text body; blank lines separate paragraphs }
-      responses:
-        "200":
-          description: Email sent
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  message: { type: string, description: 'Confirmation, e.g. "Email sent to you@example.com"' }
-        "429":
-          description: Email limit reached
           content:
             application/json:
               schema: { $ref: "#/components/schemas/Error" }

@@ -68,13 +68,11 @@ Check server status, run tasks and scans, search your fleet and act on cloud VMs
 > Who logged in to db-primary yesterday?
 
 > Which certificates expire this month?
-
-> Email me a summary of the critical security findings
 ```
 
-## Operations (30)
+## Operations (29)
 
-GPT Actions allow 30 operations, so the spec covers the ManageLM MCP tools in 30. What stays out: the skill catalog (`list_available_skills`, too large for an action response), scheduled tasks (`search_schedules`), and the sites list and the plan and usage limits that `get_account_info` returns. `get_cloud_info` is `searchCloud` plus `getConnectorActions`.
+GPT Actions allow 30 operations, so the spec covers the ManageLM MCP tools in 29. What stays out: the skill catalog (`list_available_skills`, too large for an action response), scheduled tasks (`search_schedules`), and the sites list and the plan and usage limits that `get_account_info` returns. `get_cloud_info` is `searchCloud` plus `getConnectorActions`.
 
 | Area | Operations |
 |------|-----------|
@@ -83,7 +81,6 @@ GPT Actions allow 30 operations, so the spec covers the ManageLM MCP tools in 30
 | Hosting | `listConnectors`, `searchCloud`, `getConnectorActions`, `runConnectorAction` |
 | Tasks | `submitTask`, `listTasks`, `getTask`, `answerTask`, `followUpTask`, `getTaskChanges`, `revertTask` |
 | Scans | `startScan`, `getScan` (security, inventory, sshkeys, certscan, activity) |
-| Utility | `sendEmail` |
 
 ChatGPT stops waiting for an action after 45 seconds, so tasks wait 35 seconds (`wait_seconds=35`). A longer task returns its ID, and the GPT checks it with `getTask`. Tasks and scans run on one server at a time. Approving agents, users, skills, groups, API keys and webhooks are managed in the portal.
 
@@ -116,7 +113,7 @@ And update the OAuth URLs to point to your portal.
 
 | File | Purpose |
 |------|---------|
-| `openapi.yaml` | OpenAPI 3.1 schema (30 operations) — paste into GPT Actions |
+| `openapi.yaml` | OpenAPI 3.1 schema (29 operations) — paste into GPT Actions |
 | `instructions.md` | GPT system prompt — paste into GPT Instructions |
 | `icon.png` | GPT avatar icon |
 
