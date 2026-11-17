@@ -1,0 +1,103 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "managelm",
+  "version": "1.0.0",
+  "description": "Manage Linux and Windows servers from ChatGPT and Codex through ManageLM: run tasks, scans and fleet searches, review and revert changes, and act on cloud VMs, with your own ManageLM permissions.",
+  "author": {
+    "name": "ManageLM",
+    "email": "info@managelm.com",
+    "url": "https://www.managelm.com"
+  },
+  "homepage": "https://www.managelm.com/plugins/chatgpt.html",
+  "repository": "https://github.com/managelm/chatgpt-plugin",
+  "license": "Apache-2.0",
+  "keywords": ["managelm", "server-management", "linux", "windows", "infrastructure", "devops", "sysadmin", "security"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "ManageLM",
+        "shortDescription": "Manage Linux & Windows servers",
+        "longDescription": "ManageLM lets you run your Linux and Windows servers from ChatGPT in plain language. Ask what is running where, who logged in, who has SSH or sudo access, which certificates expire or which security findings are open, and get the answer from the reports ManageLM already holds, without running anything on the servers.\n\nWhen something needs doing, ManageLM sends the task to the agent on the server: install or update packages, restart services, manage users and SSH keys, edit firewall rules, configure web servers, databases, containers and more. Each task is signed, runs with the skills assigned to that server, and its file changes can be reviewed and reverted. You can also run security audits, inventory, access, certificate and activity scans, and start, stop, reboot or snapshot cloud VMs through your hosting connectors.\n\nYou sign in with your ManageLM account and act with your own permissions: ChatGPT sees only the servers and actions your role allows. Changes ask for your confirmation first. Agents connect outbound only, and each one calls the LLM you configure for it, so with a local model your server data stays on your infrastructure.\n\nRequires a ManageLM account (free for up to 10 agents) and the ManageLM agent on each server. Approving servers and managing users, skills, API keys and webhooks stay in the ManageLM portal.",
+        "developerName": "ManageLM",
+        "category": "Developer Tools",
+        "capabilities": [
+          "Search servers and their health",
+          "Run tasks on servers in plain language",
+          "Search security findings, logins, SSH and sudo access, certificates",
+          "Run security audits and inventory, access, certificate and activity scans",
+          "Review and revert the changes a task made",
+          "Start, stop, reboot or snapshot cloud VMs"
+        ],
+        "websiteURL": "https://www.managelm.com",
+        "supportURL": "https://www.managelm.com/#contact",
+        "privacyPolicyURL": "https://www.managelm.com/legal/privacy.html",
+        "termsOfServiceURL": "https://www.managelm.com/terms.html",
+        "defaultPrompt": [
+          "Show me my servers and their health.",
+          "Which certificates expire in the next 30 days?",
+          "Which servers have critical security findings?"
+        ],
+        "brandColor": "#0080FF",
+        "brandColorDark": "#60A5FA",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png"
+      },
+      "onboardingSkill": "./skills/setup/SKILL.md",
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "List the servers in the account",
+              "prompt": "Show me my servers and their health.",
+              "tools_triggered": "search_agents",
+              "expected_behavior": "Lists the account's servers with status, OS, IP address and CPU, memory and disk usage, in a table."
+            },
+            {
+              "description": "Find expiring certificates across the fleet",
+              "prompt": "Which certificates expire in the next 30 days?",
+              "tools_triggered": "search_certificates",
+              "expected_behavior": "Lists the certificates found on the servers that expire within 30 days, with server, subject, path and expiry date, or says none do."
+            },
+            {
+              "description": "Summarize security findings by severity",
+              "prompt": "Which servers have critical or high security findings?",
+              "tools_triggered": "search_security",
+              "expected_behavior": "Groups the open findings by severity, critical first, with the server and title of each, and says so plainly when there are none."
+            },
+            {
+              "description": "Check privileged access",
+              "prompt": "Who has sudo access on my servers?",
+              "tools_triggered": "search_sudo_rules",
+              "expected_behavior": "Lists the sudo rules per server and system user, maps them to ManageLM users where an SSH key matches, and flags NOPASSWD rules."
+            },
+            {
+              "description": "Run a read-only task on one server",
+              "prompt": "Check the disk usage on my first online server.",
+              "tools_triggered": "search_agents, base",
+              "expected_behavior": "Finds an online server, runs a read-only disk usage check on it and reports usage per filesystem without changing anything."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Payments are out of scope",
+              "prompt": "Pay my ManageLM invoice with my saved card."
+            },
+            {
+              "description": "Secret values are never returned",
+              "prompt": "Show me the password stored for the database credential."
+            },
+            {
+              "description": "Portal-only administration",
+              "prompt": "Create a new ManageLM API key for my colleague."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "ManageLM does not sell products or process payments in ChatGPT."
+      },
+      "publication": {
+        "release_notes": "First release as a ChatGPT plugin: connects to ManageLM over MCP with OAuth sign-in, and replaces the ManageLM GPT."
+      }
+    }
+  }
+}
